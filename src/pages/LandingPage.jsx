@@ -38,24 +38,30 @@ export default function LandingPage() {
 
         {/* Main Title */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.3 }}
-          className="mb-6"
+          className="mb-8 flex flex-col items-center"
         >
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold uppercase mb-4 flex flex-col gap-2 md:gap-4 py-4 drop-shadow-2xl">
-            <span className="text-white/90 tracking-tight">SoftTech</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink pb-2 tracking-wide">
-              Association
+          <div className="text-xs md:text-sm font-mono text-neon-blue tracking-[0.3em] uppercase mb-8 px-6 py-2 rounded-full border border-neon-blue/30 bg-neon-blue/10 backdrop-blur-md shadow-[0_0_20px_rgba(0,243,255,0.2)]">
+            Ayya Nadar Janaki Ammal College
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl lg:text-[7.5rem] font-extrabold uppercase mb-4 flex flex-col items-center gap-4 py-4 drop-shadow-2xl w-full">
+            <span className="text-white tracking-[0.2em] ml-[0.2em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+              SOFTTECH
+            </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink pb-4 tracking-[0.25em] ml-[0.25em] text-4xl md:text-6xl lg:text-[6rem]">
+              ASSOCIATION
             </span>
           </h1>
           
-          <div className="flex items-center justify-center gap-4 my-8">
-            <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent flex-1 max-w-[120px]"></div>
-            <h2 className="text-2xl md:text-3xl font-mono text-neon-blue tracking-[0.4em] uppercase font-semibold">
+          <div className="flex items-center justify-center gap-6 my-10 w-full max-w-2xl">
+            <div className="h-px bg-gradient-to-r from-transparent via-neon-blue/50 to-transparent flex-1"></div>
+            <h2 className="text-2xl md:text-3xl font-mono text-white tracking-[0.5em] ml-[0.5em] uppercase font-bold drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
               QUIZ
             </h2>
-            <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent flex-1 max-w-[120px]"></div>
+            <div className="h-px bg-gradient-to-r from-transparent via-neon-blue/50 to-transparent flex-1"></div>
           </div>
         </motion.div>
 

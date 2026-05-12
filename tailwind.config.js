@@ -21,7 +21,7 @@ export default {
       },
       fontFamily: {
         mono: ['"Fira Code"', 'monospace'],
-        sans: ['Outfit', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
       },
       animation: {
         'glow-pulse': 'glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
