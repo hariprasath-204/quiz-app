@@ -8,6 +8,11 @@
     background-image: 
       radial-gradient(circle at 15% 50%, rgba(176, 38, 255, 0.1), transparent 25%),
       radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.1), transparent 25%);
+    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 3L19.5 11L11.5 13.5L8.5 21L4.5 3Z" fill="%2300f3ff" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, auto !important;
+  }
+
+  button, a, input, select, [role="button"], .cursor-pointer {
+    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 3L19.5 11L11.5 13.5L8.5 21L4.5 3Z" fill="%23ff007f" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, pointer !important;
   }
 }
 

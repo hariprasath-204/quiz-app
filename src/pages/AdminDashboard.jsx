@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('live');
   const [gameState, setGameState] = useState(null);
+  const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10 }, { id: 2, capacity: 7 }, { id: 3, capacity: 5 }]);
   const [questions, setQuestions] = useState([]);
   const [teams, setTeams] = useState([]);
   
@@ -19,6 +20,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     const docRef = doc(db, "game_state", "current");
     const unSubState = onSnapshot(docRef, (s) => setGameState(s.data()));
+    
+    const settingsRef = doc(db, "game_state", "settings");
+    const unSubSettings = onSnapshot(settingsRef, (s) => {
+      if (s.exists() && s.data().roundsConfig) {
+        setRoundsConfig(s.data().roundsConfig);
+      }
+    });
     
     const unSubQ = onSnapshot(collection(db, "questions"), (s) => {
       const q = [];
@@ -34,10 +42,15 @@ export default function AdminDashboard() {
 
     return () => {
       unSubState();
+      unSubSettings();
       unSubQ();
       unSubTeams();
     };
   }, []);
+
+  const saveSettings = async (newConfig) => {
+    await setDoc(doc(db, "game_state", "settings"), { roundsConfig: newConfig }, { merge: true });
+  };
 
   const saveQuestion = async () => {
     await addDoc(collection(db, "questions"), {
@@ -191,6 +204,12 @@ export default function AdminDashboard() {
         >
           🏆 Grand Winner
         </button>
+        <button 
+          onClick={() => setActiveTab('settings')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'settings' ? 'text-neon-blue bg-neon-blue/10 border-r-4 border-neon-blue' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          ⚙️ Game Settings
+        </button>
       </nav>
 
       {/* Main Content */}
@@ -286,11 +305,11 @@ export default function AdminDashboard() {
               </select>
               <select 
                 value={roundSelect} onChange={e => setRoundSelect(e.target.value)}
-                className="w-full bg-dark-bg/50 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-neon-purple"
+                className="w-full bg-dark-bg/50 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-neon-purple font-mono"
               >
-                <option value="1">Round 1 (10 Questions)</option>
-                <option value="2">Round 2 (7 Questions)</option>
-                <option value="3">Round 3 (5 Questions)</option>
+                {roundsConfig.map(r => (
+                  <option key={r.id} value={r.id}>Round {r.id} ({r.capacity} Questions)</option>
+                ))}
               </select>
               <motion.button 
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
@@ -323,15 +342,16 @@ export default function AdminDashboard() {
           <section className="animate-in fade-in zoom-in-95 duration-300">
             <h2 className="text-3xl font-bold mb-6 font-mono text-neon-green">Push Questions Live</h2>
             
-            {[1, 2, 3].map((roundNum) => {
+            {roundsConfig.map((round) => {
+              const roundNum = round.id;
+              const capacity = round.capacity;
               const roundQuestions = questions.filter(q => q.round === roundNum || (!q.round && roundNum === 1));
-              const capacities = { 1: 10, 2: 7, 3: 5 };
               
               return (
                 <div key={roundNum} className="mb-10">
                   <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2 font-mono flex justify-between items-center">
                     <span>Round {roundNum}</span>
-                    <span className="text-sm text-white/40">{roundQuestions.length} / {capacities[roundNum]} Questions</span>
+                    <span className="text-sm text-white/40">{roundQuestions.length} / {capacity} Questions</span>
                   </h3>
                   <div className="space-y-3">
                     {roundQuestions.map((q) => (
@@ -507,6 +527,69 @@ export default function AdminDashboard() {
               {teams.filter(t => !t.eliminated).length === 0 && (
                 <p className="text-white/30 font-mono italic p-4">No active teams.</p>
               )}
+            </div>
+          </section>
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <section className="animate-in fade-in zoom-in-95 duration-300">
+            <h2 className="text-3xl font-bold font-mono text-neon-blue mb-6">Game Settings</h2>
+            
+            <div className="glass-panel p-8 rounded-2xl mb-8">
+              <h3 className="text-xl font-bold border-b border-white/10 pb-4 mb-6 font-mono">Round Configuration</h3>
+              <p className="text-white/50 mb-6 font-mono text-sm">Configure how many rounds your quiz will have, and exactly how many questions belong to each round.</p>
+              
+              <div className="space-y-4 mb-6">
+                {roundsConfig.map((r, i) => (
+                  <div key={i} className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10">
+                    <span className="font-mono text-lg font-bold w-32">Round {r.id}</span>
+                    <div className="flex-1 flex items-center gap-4">
+                      <label className="text-white/40 font-mono text-sm">Capacity:</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={r.capacity} 
+                        onChange={(e) => {
+                          const newConfig = [...roundsConfig];
+                          newConfig[i].capacity = parseInt(e.target.value) || 1;
+                          setRoundsConfig(newConfig);
+                        }}
+                        className="bg-dark-bg border border-white/20 p-2 rounded-lg text-white outline-none focus:border-neon-blue w-24 font-mono text-center"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newConfig = roundsConfig.filter((_, idx) => idx !== i);
+                        // Re-index round IDs
+                        newConfig.forEach((round, idx) => round.id = idx + 1);
+                        setRoundsConfig(newConfig);
+                      }}
+                      className="text-red-500 hover:text-red-400 font-mono transition-colors p-2"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => {
+                    const newConfig = [...roundsConfig, { id: roundsConfig.length + 1, capacity: 5 }];
+                    setRoundsConfig(newConfig);
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white border border-white/30 font-bold font-mono px-6 py-3 rounded-xl transition-all"
+                >
+                  + Add Round
+                </button>
+                <button 
+                  onClick={() => saveSettings(roundsConfig)}
+                  className="bg-neon-blue/20 text-neon-blue border border-neon-blue font-bold font-mono px-6 py-3 rounded-xl hover:bg-neon-blue/30 transition-all shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+                >
+                  Save Configuration
+                </button>
+              </div>
             </div>
           </section>
         )}
