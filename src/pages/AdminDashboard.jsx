@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +26,7 @@ export default function AdminDashboard() {
   // Loading & Modal State
   const [isLoading, setIsLoading] = useState(false);
   const [modal, setModal] = useState(null); // { message, onConfirm, type: 'alert' | 'confirm' }
+  const ansIntervalRef = useRef(null);
 
   const showAlert = (msg) => setModal({ type: 'alert', message: msg });
   const showConfirm = (msg, action) => setModal({ type: 'confirm', message: msg, onConfirm: action });
@@ -77,6 +78,13 @@ export default function AdminDashboard() {
       }
     }
   }, [activeTab, teams]);
+
+  // Handle pass to next team
+  useEffect(() => {
+    if (gameState?.status === "pass_to_next" && gameState?.queue?.length > 0) {
+      startAnswerTimer(gameState.queue);
+    }
+  }, [gameState?.status]);
 
   const saveSettings = async (newConfig) => {
     setIsLoading(true);
@@ -174,13 +182,47 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
+  const startAnswerTimer = async (currentQueue) => {
+    if (ansIntervalRef.current) clearInterval(ansIntervalRef.current);
+    
+    const docRef = doc(db, "game_state", "current");
+    await updateDoc(docRef, { status: "answering", timerValue: 30 });
+    
+    let ansTimeLeft = 30;
+    ansIntervalRef.current = setInterval(async () => {
+      const snap = await getDoc(docRef);
+      const data = snap.data();
+      
+      // If status changed to evaluating (team clicked an answer), stop this timer.
+      if (data.status !== "answering" || !data.queue || data.queue[0] !== currentQueue[0]) {
+        clearInterval(ansIntervalRef.current);
+        return;
+      }
+
+      ansTimeLeft--;
+      await updateDoc(docRef, { timerValue: ansTimeLeft });
+      
+      if (ansTimeLeft <= 0) {
+        clearInterval(ansIntervalRef.current);
+        // Time is up! 
+        const newQueue = data.queue.slice(1);
+        if (newQueue.length > 0) {
+          await updateDoc(docRef, { queue: newQueue });
+          startAnswerTimer(newQueue); // Start timer for next team
+        } else {
+          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
+        }
+      }
+    }, 1000);
+  };
+
   const forceAnswering = async () => {
     setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
     const snap = await getDoc(docRef);
     const data = snap.data();
     if (data && data.queue && data.queue.length > 0) {
-      await updateDoc(docRef, { status: "answering", timerValue: 0 });
+      startAnswerTimer(data.queue);
     } else {
       await updateDoc(docRef, { status: "waiting", timerValue: 0 });
     }
@@ -189,9 +231,19 @@ export default function AdminDashboard() {
 
   const resetSystem = async () => {
     setIsLoading(true);
+    if (ansIntervalRef.current) clearInterval(ansIntervalRef.current);
     const docRef = doc(db, "game_state", "current");
     await setDoc(docRef, { status: "waiting", queue: [], timerValue: 0 }, { merge: true });
     setIsLoading(false);
+  };
+
+  const triggerRoundTransition = async (type, num) => {
+    showConfirm(`Trigger the Round ${num} ${type.toUpperCase()} cinematic screen?`, async () => {
+      setIsLoading(true);
+      const docRef = doc(db, "game_state", "current");
+      await updateDoc(docRef, { status: "round_transition", transitionType: type, roundNumber: num });
+      setIsLoading(false);
+    });
   };
 
   const addTeam = async () => {
@@ -475,10 +527,19 @@ export default function AdminDashboard() {
 
             <div className="space-y-3">
               {questions.map((q) => (
-                <div key={q.id} className={`glass-panel p-4 rounded-xl flex justify-between items-center border-l-4 border-neon-purple/50 ${editingId === q.id ? 'bg-neon-purple/10' : ''}`}>
-                  <div>
-                    <span className="font-medium">{q.text}</span>
-                    <span className="ml-3 text-xs text-white/40 font-mono">Round {q.round || 1}</span>
+                <div key={q.id} className={`glass-panel p-6 rounded-xl flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-l-4 border-neon-purple/50 ${editingId === q.id ? 'bg-neon-purple/10' : ''}`}>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="font-bold text-xl">{q.text}</span>
+                      <span className="text-xs bg-white/10 px-2 py-1 rounded text-white/50 font-mono">Round {q.round || 1}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {q.options?.map((opt, i) => (
+                        <div key={i} className={`text-sm p-2 rounded-lg font-mono ${q.correct === i ? 'bg-neon-green/20 border border-neon-green text-neon-green shadow-[0_0_10px_rgba(0,255,102,0.2)]' : 'bg-dark-bg/50 border border-white/10 text-white/50'}`}>
+                          {['A', 'B', 'C', 'D'][i]}. {opt}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex gap-4 items-center">
                     <button onClick={() => editQuestion(q)} className="text-white/30 hover:text-neon-blue font-mono text-sm transition-colors uppercase tracking-widest">
@@ -509,12 +570,25 @@ export default function AdminDashboard() {
                 <div key={roundNum} className="mb-10">
                   <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2 font-mono flex justify-between items-center">
                     <span>Round {roundNum}</span>
-                    <span className="text-sm text-white/40">{roundQuestions.length} / {capacity} Questions</span>
+                    <div className="flex gap-4 items-center">
+                      <button onClick={() => triggerRoundTransition('start', roundNum)} className="text-xs bg-neon-blue/20 text-neon-blue px-3 py-1 rounded hover:bg-neon-blue/40 border border-neon-blue transition-all uppercase tracking-widest font-bold">Start Round</button>
+                      <button onClick={() => triggerRoundTransition('finish', roundNum)} className="text-xs bg-neon-pink/20 text-neon-pink px-3 py-1 rounded hover:bg-neon-pink/40 border border-neon-pink transition-all uppercase tracking-widest font-bold">Finish Round</button>
+                      <span className="text-sm text-white/40 ml-4">{roundQuestions.length} / {capacity} Questions</span>
+                    </div>
                   </h3>
                   <div className="space-y-3">
                     {roundQuestions.map((q) => (
-                      <div key={q.id} className={`glass-panel p-5 rounded-xl flex justify-between items-center transition-all ${q.pushed ? 'opacity-80' : 'border-l-4 border-neon-green'}`}>
-                        <span className="font-medium text-lg">{q.text}</span>
+                      <div key={q.id} className={`glass-panel p-6 rounded-xl flex flex-col md:flex-row md:justify-between md:items-center gap-6 transition-all ${q.pushed ? 'opacity-80' : 'border-l-4 border-neon-green'}`}>
+                        <div className="flex-1">
+                          <span className="font-bold text-xl block mb-3">{q.text}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {q.options?.map((opt, i) => (
+                              <div key={i} className={`text-sm p-2 rounded-lg font-mono ${q.correct === i ? 'bg-neon-green/20 border border-neon-green text-neon-green shadow-[0_0_10px_rgba(0,255,102,0.2)]' : 'bg-dark-bg/50 border border-white/10 text-white/50'}`}>
+                                {['A', 'B', 'C', 'D'][i]}. {opt}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                         {q.pushed ? (
                           <div className="flex gap-4 items-center">
                             <span className="bg-white/5 text-white/30 px-6 py-3 rounded-lg font-mono text-sm font-bold border border-white/10 uppercase tracking-widest cursor-not-allowed">LOCKED</span>

@@ -34,6 +34,9 @@ export default function ClientPortal() {
 
   const handleAns = async (idx, correctIdx, currentQueue) => {
     const docRef = doc(db, "game_state", "current");
+    // Pause timer
+    await updateDoc(docRef, { status: "evaluating" });
+
     if (idx === correctIdx) {
       const points = [10, 7, 5, 3];
       const turnIndex = 4 - currentQueue.length;
@@ -57,8 +60,10 @@ export default function ClientPortal() {
       setPopup({ type: 'wrong', msg: 'WRONG! Pass to next team.' });
       setTimeout(async () => {
         setPopup(null);
-        await updateDoc(docRef, { queue: arrayRemove(myTeam) });
-        if (currentQueue.length <= 1) {
+        const newQueue = currentQueue.slice(1);
+        if (newQueue.length > 0) {
+          await updateDoc(docRef, { queue: newQueue, status: "pass_to_next" });
+        } else {
           await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
         }
       }, 2500);
@@ -122,6 +127,39 @@ export default function ClientPortal() {
 
       <div className="w-full max-w-3xl text-center flex-1 flex flex-col justify-center relative">
         
+        {/* ROUND TRANSITION OVERLAY */}
+        <AnimatePresence>
+          {status === "round_transition" && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.2 }}
+              className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-dark-bg/95 backdrop-blur-xl rounded-3xl"
+            >
+              <motion.h1 
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className={`text-[6rem] md:text-[8rem] font-black uppercase text-center leading-tight drop-shadow-2xl ${gameState.transitionType === 'start' ? 'text-neon-blue shadow-neon-blue' : 'text-neon-green shadow-neon-green'}`}
+              >
+                ROUND {gameState.roundNumber}
+                <br/>
+                <span className="text-[4rem] md:text-[5rem] text-white">
+                  {gameState.transitionType === 'start' ? 'STARTING' : 'FINISHED'}
+                </span>
+              </motion.h1>
+              {gameState.transitionType === 'finish' && (
+                <motion.p
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}
+                  className="mt-8 text-xl md:text-2xl font-mono text-white/50 tracking-widest uppercase text-center"
+                >
+                  Check Leaderboard for Standings
+                </motion.p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* COUNTDOWN OVERLAY */}
         <AnimatePresence>
           {status === "countdown" && (
@@ -140,7 +178,7 @@ export default function ClientPortal() {
         </AnimatePresence>
 
         {/* BUZZER AREA */}
-        {status !== "answering" && status !== "countdown" && (
+        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -171,7 +209,7 @@ export default function ClientPortal() {
         )}
 
         {/* ANSWERING AREA */}
-        {status === "answering" && queue && queue.length > 0 && (
+        {(status === "answering" || status === "evaluating") && queue && queue.length > 0 && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -179,9 +217,14 @@ export default function ClientPortal() {
           >
             {queue[0] === myTeam ? (
               <div className="glass-panel p-8 rounded-3xl">
+                <div className="text-center mb-8">
+                  <span className={`text-6xl md:text-7xl font-mono font-black ${timerValue <= 10 ? 'text-red-500 animate-pulse' : 'text-neon-pink'} drop-shadow-[0_0_15px_rgba(255,0,127,0.5)]`}>
+                    00:{timerValue < 10 ? `0${timerValue}` : timerValue}
+                  </span>
+                </div>
                 <div className="mb-12">
-                  <h4 className="text-neon-blue font-black text-4xl uppercase tracking-widest drop-shadow-[0_0_15px_rgba(0,243,255,0.5)]">Your Turn!</h4>
-                  <p className="text-white/60 mt-4 font-mono uppercase tracking-widest">Select the correct answer</p>
+                  <h4 className="text-neon-blue font-black text-4xl uppercase tracking-widest drop-shadow-[0_0_15px_rgba(0,243,255,0.5)] text-center">Your Turn!</h4>
+                  <p className="text-white/60 mt-4 font-mono uppercase tracking-widest text-center">Select the correct answer</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {activeQ?.options.map((opt, i) => (
