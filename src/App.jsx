@@ -6,14 +6,12 @@ import Leaderboard from './pages/Leaderboard';
 import Elimination from './pages/Elimination';
 import Winner from './pages/Winner';
 import Background from './components/Background';
-import CustomCursor from './components/CustomCursor';
 
 function App() {
   return (
     <Router>
       <Background />
-      <CustomCursor />
-      <div className="min-h-screen w-full font-sans text-white relative z-10 cursor-none">
+      <div className="min-h-screen w-full font-sans text-white relative z-10">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/arena" element={<ClientPortal />} />
