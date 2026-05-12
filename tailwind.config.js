@@ -20,8 +20,8 @@ export default {
         }
       },
       fontFamily: {
-        mono: ['"Space Mono"', 'monospace'],
-        sans: ['Inter', 'sans-serif'],
+        mono: ['"Fira Code"', 'monospace'],
+        sans: ['Outfit', 'sans-serif'],
       },
       animation: {
         'glow-pulse': 'glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',

@@ -43,19 +43,19 @@ export default function LandingPage() {
           transition={{ duration: 1, delay: 0.3 }}
           className="mb-6"
         >
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter mb-4 text-white drop-shadow-[0_0_25px_rgba(0,243,255,0.5)] flex flex-col gap-2 md:gap-6 py-4">
-            <span>SoftTech</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink pb-2 leading-tight">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold uppercase mb-4 flex flex-col gap-2 md:gap-4 py-4 drop-shadow-2xl">
+            <span className="text-white/90 tracking-tight">SoftTech</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink pb-2 tracking-wide">
               Association
             </span>
           </h1>
           
           <div className="flex items-center justify-center gap-4 my-8">
-            <div className="h-px bg-gradient-to-r from-transparent via-white/50 to-transparent flex-1 max-w-[100px]"></div>
-            <h2 className="text-2xl md:text-3xl font-mono text-neon-blue tracking-[0.5em] uppercase">
+            <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent flex-1 max-w-[120px]"></div>
+            <h2 className="text-2xl md:text-3xl font-mono text-neon-blue tracking-[0.4em] uppercase font-semibold">
               QUIZ
             </h2>
-            <div className="h-px bg-gradient-to-r from-transparent via-white/50 to-transparent flex-1 max-w-[100px]"></div>
+            <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent flex-1 max-w-[120px]"></div>
           </div>
         </motion.div>
 
