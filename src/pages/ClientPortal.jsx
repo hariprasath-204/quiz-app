@@ -27,7 +27,33 @@ export default function ClientPortal() {
     }
   };
 
+  const playBuzzSound = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, ctx.currentTime); // low buzz
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {
+      console.error("Audio failed", e);
+    }
+  };
+
   const sendBuzz = async () => {
+    playBuzzSound();
     const docRef = doc(db, "game_state", "current");
     await updateDoc(docRef, { queue: arrayUnion(myTeam) });
   };
