@@ -177,16 +177,6 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
-  const resetScores = async () => {
-    if (window.confirm("Are you sure you want to reset all team scores to 0?")) {
-      setIsLoading(true);
-      for (const t of teams) {
-        await updateDoc(doc(db, "teams", t.id), { score: 0 });
-      }
-      setIsLoading(false);
-    }
-  };
-
   const triggerElimination = async () => {
     const team = teams.find(t => t.id === elimTargetId);
     if (!team) return;
@@ -477,9 +467,6 @@ export default function AdminDashboard() {
               <button onClick={addTeam} className="bg-neon-pink/20 text-neon-pink border border-neon-pink font-bold font-mono px-8 py-4 rounded-xl hover:bg-neon-pink/30 transition-all">
                 ADD TEAM
               </button>
-              <button onClick={resetScores} className="bg-red-500/10 text-red-500 border border-red-500/50 font-bold font-mono px-8 py-4 rounded-xl hover:bg-red-500/20 transition-all">
-                RESET SCORES
-              </button>
             </div>
 
             <div className="glass-panel rounded-2xl overflow-hidden">
@@ -488,7 +475,6 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="p-4">Rank</th>
                     <th className="p-4">Team</th>
-                    <th className="p-4">Score</th>
                     <th className="p-4 text-right">Action</th>
                   </tr>
                 </thead>
@@ -499,7 +485,6 @@ export default function AdminDashboard() {
                       <td className="p-4 font-bold font-mono">
                         {t.name} {t.eliminated && <span className="text-red-500 ml-2 text-xs uppercase tracking-widest">[ELIMINATED]</span>}
                       </td>
-                      <td className="p-4 text-neon-pink font-mono">{t.score}</td>
                       <td className="p-4 text-right">
                         <button 
                           onClick={() => deleteDoc(doc(db, 'teams', t.id))}
@@ -512,7 +497,7 @@ export default function AdminDashboard() {
                   ))}
                   {teams.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="p-8 text-center text-white/30 font-mono">No teams joined yet.</td>
+                      <td colSpan="3" className="p-8 text-center text-white/30 font-mono">No teams joined yet.</td>
                     </tr>
                   )}
                 </tbody>
