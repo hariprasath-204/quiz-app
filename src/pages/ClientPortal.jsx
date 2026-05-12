@@ -140,7 +140,7 @@ export default function ClientPortal() {
         </AnimatePresence>
 
         {/* BUZZER AREA */}
-        {(status === "buzzer_open" || status === "waiting") && (
+        {status !== "answering" && status !== "countdown" && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -154,7 +154,7 @@ export default function ClientPortal() {
                   ? 'buzzer-active border-transparent text-white' 
                   : 'bg-dark-surface border-dark-border text-white/30 cursor-not-allowed'}`}
             >
-              BUZZ
+              {status === "buzzer_open" ? "BUZZ" : "LOCKED"}
             </button>
             
             <div className="mt-16 flex flex-col items-center">
@@ -164,7 +164,7 @@ export default function ClientPortal() {
               <p className="mt-6 text-xl font-mono uppercase tracking-widest text-white/50">
                 {status === "buzzer_open" 
                   ? (!queue || !queue.includes(myTeam) ? "Ready... Buzz Now!" : "Buzzed! Wait for timer...") 
-                  : "Wait for moderator..."}
+                  : "Locked by Admin"}
               </p>
             </div>
           </motion.div>

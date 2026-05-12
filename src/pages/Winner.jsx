@@ -18,7 +18,7 @@ export default function Winner() {
     return <div className="min-h-screen bg-dark-bg flex items-center justify-center font-mono text-yellow-400">Connecting to Mainframe...</div>;
   }
 
-  const { status, timerValue, targetTeam } = gameState;
+  const { status, timerValue, targetTeam, runnerTeam } = gameState;
   const isWinnerMode = status === "winner_countdown" || status === "winner_revealed";
 
   return (
@@ -98,17 +98,31 @@ export default function Winner() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="w-full glass-panel border-4 border-yellow-400/50 bg-yellow-950/30 p-16 rounded-[3rem] shadow-[0_0_100px_rgba(250,204,21,0.3)]"
+                className="w-full glass-panel border-4 border-yellow-400/50 bg-yellow-950/30 p-16 rounded-[3rem] shadow-[0_0_100px_rgba(250,204,21,0.3)] mb-8"
               >
                 <h1 className="text-6xl md:text-8xl lg:text-[9rem] font-black uppercase text-white tracking-widest break-words text-center drop-shadow-2xl">
                   {targetTeam}
                 </h1>
               </motion.div>
+
+              {runnerTeam && (
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 1.5, duration: 0.8 }}
+                  className="w-full max-w-3xl glass-panel border-2 border-slate-400/50 bg-slate-900/30 p-8 rounded-[2rem] shadow-[0_0_50px_rgba(148,163,184,0.2)] flex flex-col items-center"
+                >
+                  <span className="text-slate-400 font-mono tracking-widest uppercase text-sm mb-2">🥈 Runner-Up</span>
+                  <h2 className="text-4xl md:text-5xl font-black uppercase text-white tracking-widest text-center">
+                    {runnerTeam}
+                  </h2>
+                </motion.div>
+              )}
               
               <motion.p 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 2 }}
+                transition={{ delay: 3 }}
                 className="mt-16 text-yellow-400/60 font-mono tracking-widest uppercase font-bold"
               >
                 Congratulations to the Winners!

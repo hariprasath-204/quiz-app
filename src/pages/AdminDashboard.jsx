@@ -17,6 +17,11 @@ export default function AdminDashboard() {
   const [correctIdx, setCorrectIdx] = useState(0);
   const [roundSelect, setRoundSelect] = useState('1');
   
+  // Selection States
+  const [elimTargetId, setElimTargetId] = useState('');
+  const [winnerId, setWinnerId] = useState('');
+  const [runnerId, setRunnerId] = useState('');
+
   // Loading State
   const [isLoading, setIsLoading] = useState(false);
 
@@ -50,6 +55,23 @@ export default function AdminDashboard() {
       unSubTeams();
     };
   }, []);
+
+  // Auto-calculate selections when tabs change or teams update
+  useEffect(() => {
+    const activeTeams = teams.filter(t => !t.eliminated);
+    if (activeTeams.length > 0) {
+      if (activeTab === 'eliminations') {
+        const lowest = [...activeTeams].sort((a, b) => a.score - b.score)[0];
+        if (!elimTargetId || !activeTeams.find(t => t.id === elimTargetId)) {
+          setElimTargetId(lowest.id);
+        }
+      } else if (activeTab === 'winner') {
+        const sorted = [...activeTeams].sort((a, b) => b.score - a.score);
+        if (!winnerId || !activeTeams.find(t => t.id === winnerId)) setWinnerId(sorted[0]?.id || '');
+        if (!runnerId || !activeTeams.find(t => t.id === runnerId)) setRunnerId(sorted[1]?.id || '');
+      }
+    }
+  }, [activeTab, teams]);
 
   const saveSettings = async (newConfig) => {
     setIsLoading(true);
@@ -90,6 +112,12 @@ export default function AdminDashboard() {
       await updateDoc(doc(db, "questions", q.id), { pushed: true });
     }
     setActiveTab('live');
+    setIsLoading(false);
+  };
+
+  const unlockQuestion = async (id) => {
+    setIsLoading(true);
+    await updateDoc(doc(db, "questions", id), { pushed: false });
     setIsLoading(false);
   };
 
@@ -159,7 +187,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const triggerElimination = async (team) => {
+  const triggerElimination = async () => {
+    const team = teams.find(t => t.id === elimTargetId);
+    if (!team) return;
     if (!window.confirm(`Are you sure you want to eliminate ${team.name}?`)) return;
     setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
@@ -172,12 +202,15 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
-  const triggerWinner = async (team) => {
-    if (!window.confirm(`Are you sure you want to declare ${team.name} as the WINNER?`)) return;
+  const triggerWinner = async () => {
+    const wTeam = teams.find(t => t.id === winnerId);
+    const rTeam = teams.find(t => t.id === runnerId);
+    if (!wTeam) return;
+    if (!window.confirm(`Declare ${wTeam.name} as WINNER and ${rTeam?.name || 'none'} as RUNNER-UP?`)) return;
     setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
     for (let i = 10; i > 0; i--) {
-      await updateDoc(docRef, { status: "winner_countdown", timerValue: i, targetTeam: team.name });
+      await updateDoc(docRef, { status: "winner_countdown", timerValue: i, targetTeam: wTeam.name, runnerTeam: rTeam?.name || '' });
       await new Promise(r => setTimeout(r, 1000));
     }
     await updateDoc(docRef, { status: "winner_revealed", timerValue: 0 });
@@ -387,21 +420,28 @@ export default function AdminDashboard() {
                   </h3>
                   <div className="space-y-3">
                     {roundQuestions.map((q) => (
-                      <div key={q.id} className={`glass-panel p-5 rounded-xl flex justify-between items-center transition-all ${q.pushed ? 'opacity-50 grayscale' : 'border-l-4 border-neon-green'}`}>
+                      <div key={q.id} className={`glass-panel p-5 rounded-xl flex justify-between items-center transition-all ${q.pushed ? 'opacity-80' : 'border-l-4 border-neon-green'}`}>
                         <span className="font-medium text-lg">{q.text}</span>
-                        <motion.button 
-                          whileHover={!q.pushed ? { scale: 1.05 } : {}}
-                          whileTap={!q.pushed ? { scale: 0.95 } : {}}
-                          onClick={() => !q.pushed && pushQuestion(q)} 
-                          disabled={q.pushed}
-                          className={`font-mono text-sm font-bold px-6 py-3 rounded-lg transition-all ${
-                            q.pushed 
-                              ? 'bg-white/5 text-white/30 cursor-not-allowed border border-white/10' 
-                              : 'bg-neon-green/20 text-neon-green border border-neon-green hover:bg-neon-green/30 shadow-[0_0_15px_rgba(0,255,102,0.3)] cursor-pointer'
-                          }`}
-                        >
-                          {q.pushed ? 'LOCKED' : 'PUSH LIVE'}
-                        </motion.button>
+                        {q.pushed ? (
+                          <div className="flex gap-4 items-center">
+                            <span className="bg-white/5 text-white/30 px-6 py-3 rounded-lg font-mono text-sm font-bold border border-white/10 uppercase tracking-widest cursor-not-allowed">LOCKED</span>
+                            <button 
+                              onClick={() => unlockQuestion(q.id)} 
+                              className="text-neon-green text-xs border border-neon-green px-3 py-2 rounded-lg hover:bg-neon-green/20 transition-colors uppercase font-mono font-bold"
+                            >
+                              Unlock
+                            </button>
+                          </div>
+                        ) : (
+                          <motion.button 
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => pushQuestion(q)} 
+                            className="bg-neon-green/20 text-neon-green border border-neon-green hover:bg-neon-green/30 shadow-[0_0_15px_rgba(0,255,102,0.3)] cursor-pointer font-mono text-sm font-bold px-6 py-3 rounded-lg transition-all uppercase"
+                          >
+                            PUSH LIVE
+                          </motion.button>
+                        )}
                       </div>
                     ))}
                     {roundQuestions.length === 0 && (
@@ -496,28 +536,31 @@ export default function AdminDashboard() {
               </a>
             </div>
             
-            <p className="text-white/50 font-mono mb-8">Select a team to trigger the 10-second dramatic countdown and eliminate them from the game.</p>
+            <p className="text-white/50 font-mono mb-8">The system automatically suggests the lowest-scoring team for elimination. You can manually change this before confirming.</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teams.filter(t => !t.eliminated).map(t => (
-                <div key={t.id} className="glass-panel p-6 rounded-2xl flex justify-between items-center border-l-4 border-red-500/50 hover:border-red-500 transition-all">
-                  <div>
-                    <h3 className="text-2xl font-black font-mono tracking-widest">{t.name}</h3>
-                    <p className="text-white/40 font-mono text-sm mt-1">{t.score} Points</p>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => triggerElimination(t)}
-                    className="bg-red-500/20 text-red-500 px-6 py-3 rounded-xl font-bold font-mono uppercase tracking-widest border border-red-500 hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
-                  >
-                    Eliminate
-                  </motion.button>
-                </div>
-              ))}
-              {teams.filter(t => !t.eliminated).length === 0 && (
-                <p className="text-white/30 font-mono italic p-4">No active teams left to eliminate.</p>
-              )}
+            <div className="glass-panel p-8 rounded-2xl flex flex-col gap-6 max-w-xl">
+              <div>
+                <label className="text-white/50 font-mono uppercase tracking-widest text-sm mb-2 block">Select Team to Eliminate</label>
+                <select 
+                  value={elimTargetId} 
+                  onChange={(e) => setElimTargetId(e.target.value)}
+                  className="w-full bg-dark-bg/50 border border-red-500/50 p-4 rounded-xl text-white outline-none focus:border-red-500 font-mono text-xl"
+                >
+                  {teams.filter(t => !t.eliminated).map(t => (
+                    <option key={t.id} value={t.id}>{t.name} - {t.score} PTS</option>
+                  ))}
+                </select>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={triggerElimination}
+                disabled={!elimTargetId}
+                className="w-full bg-red-500/20 text-red-500 py-4 rounded-xl font-bold font-mono text-xl uppercase tracking-widest border-2 border-red-500 hover:bg-red-500 hover:text-white transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)] disabled:opacity-50"
+              >
+                Confirm & Reveal Elimination
+              </motion.button>
             </div>
           </section>
         )}
@@ -537,28 +580,46 @@ export default function AdminDashboard() {
               </a>
             </div>
             
-            <p className="text-white/50 font-mono mb-8">Select the winning team to trigger the grand finale countdown and golden reveal animation.</p>
+            <p className="text-white/50 font-mono mb-8">The system automatically selects the highest scoring teams for Champion and Runner-Up. You can modify these selections before the grand reveal.</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {teams.filter(t => !t.eliminated).map((t, i) => (
-                <div key={t.id} className="glass-panel p-6 rounded-2xl flex justify-between items-center border-l-4 border-yellow-400/50 hover:border-yellow-400 transition-all">
-                  <div>
-                    <h3 className="text-2xl font-black font-mono tracking-widest">{t.name}</h3>
-                    <p className="text-white/40 font-mono text-sm mt-1">{t.score} Points (Rank #{i+1})</p>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => triggerWinner(t)}
-                    className="bg-yellow-400/20 text-yellow-400 px-6 py-3 rounded-xl font-bold font-mono uppercase tracking-widest border border-yellow-400 hover:bg-yellow-400 hover:text-black transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)]"
-                  >
-                    Crown Winner
-                  </motion.button>
-                </div>
-              ))}
-              {teams.filter(t => !t.eliminated).length === 0 && (
-                <p className="text-white/30 font-mono italic p-4">No active teams.</p>
-              )}
+            <div className="glass-panel p-8 rounded-2xl flex flex-col gap-6 max-w-xl">
+              <div>
+                <label className="text-yellow-400 font-mono uppercase tracking-widest text-sm mb-2 block font-bold">🥇 Grand Champion</label>
+                <select 
+                  value={winnerId} 
+                  onChange={(e) => setWinnerId(e.target.value)}
+                  className="w-full bg-dark-bg/50 border border-yellow-400/50 p-4 rounded-xl text-yellow-400 font-bold outline-none focus:border-yellow-400 font-mono text-xl"
+                >
+                  <option value="">-- Select Winner --</option>
+                  {teams.filter(t => !t.eliminated).map(t => (
+                    <option key={t.id} value={t.id}>{t.name} - {t.score} PTS</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-mono uppercase tracking-widest text-sm mb-2 block font-bold mt-4">🥈 Runner-Up</label>
+                <select 
+                  value={runnerId} 
+                  onChange={(e) => setRunnerId(e.target.value)}
+                  className="w-full bg-dark-bg/50 border border-slate-400/50 p-4 rounded-xl text-slate-300 font-bold outline-none focus:border-slate-300 font-mono text-xl"
+                >
+                  <option value="">-- Select Runner-Up --</option>
+                  {teams.filter(t => !t.eliminated).map(t => (
+                    <option key={t.id} value={t.id}>{t.name} - {t.score} PTS</option>
+                  ))}
+                </select>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={triggerWinner}
+                disabled={!winnerId}
+                className="w-full bg-yellow-400/20 text-yellow-400 py-4 rounded-xl font-bold font-mono text-xl uppercase tracking-widest border-2 border-yellow-400 hover:bg-yellow-400 hover:text-black transition-all shadow-[0_0_25px_rgba(250,204,21,0.5)] disabled:opacity-50 mt-4"
+              >
+                Reveal Grand Champions
+              </motion.button>
             </div>
           </section>
         )}
