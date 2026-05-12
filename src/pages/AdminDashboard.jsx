@@ -16,6 +16,9 @@ export default function AdminDashboard() {
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctIdx, setCorrectIdx] = useState(0);
   const [roundSelect, setRoundSelect] = useState('1');
+  
+  // Loading State
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const docRef = doc(db, "game_state", "current");
@@ -49,10 +52,23 @@ export default function AdminDashboard() {
   }, []);
 
   const saveSettings = async (newConfig) => {
+    setIsLoading(true);
     await setDoc(doc(db, "game_state", "settings"), { roundsConfig: newConfig }, { merge: true });
+    setIsLoading(false);
   };
 
   const saveQuestion = async () => {
+    // Validation
+    if (!qText.trim()) {
+      alert("Validation Failed: Please enter a question.");
+      return;
+    }
+    if (options.some(opt => !opt.trim())) {
+      alert("Validation Failed: Please fill in all 4 options.");
+      return;
+    }
+
+    setIsLoading(true);
     await addDoc(collection(db, "questions"), {
       text: qText,
       options,
@@ -62,20 +78,23 @@ export default function AdminDashboard() {
     });
     setQText('');
     setOptions(['', '', '', '']);
+    setIsLoading(false);
     alert("Question Saved to Bank!");
   };
 
   const pushQuestion = async (q) => {
+    setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
     await setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0 }, { merge: true });
-    // Mark as pushed in the bank
     if (q.id) {
       await updateDoc(doc(db, "questions", q.id), { pushed: true });
     }
     setActiveTab('live');
+    setIsLoading(false);
   };
 
   const startSequence = async () => {
+    setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
     
     // 3-2-1
@@ -96,9 +115,11 @@ export default function AdminDashboard() {
         forceAnswering();
       }
     }, 1000);
+    setIsLoading(false);
   };
 
   const forceAnswering = async () => {
+    setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
     const snap = await getDoc(docRef);
     const data = snap.data();
@@ -107,61 +128,72 @@ export default function AdminDashboard() {
     } else {
       await updateDoc(docRef, { status: "waiting", timerValue: 0 });
     }
+    setIsLoading(false);
   };
 
   const resetSystem = async () => {
+    setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
     await setDoc(docRef, { status: "waiting", queue: [], timerValue: 0 }, { merge: true });
+    setIsLoading(false);
   };
 
   const addTeam = async () => {
-    if(newTeam.trim()) {
-      await addDoc(collection(db, "teams"), { name: newTeam, score: 0 });
-      setNewTeam('');
+    if (!newTeam.trim()) {
+      alert("Validation Failed: Please enter a team name.");
+      return;
     }
+    setIsLoading(true);
+    await addDoc(collection(db, "teams"), { name: newTeam, score: 0 });
+    setNewTeam('');
+    setIsLoading(false);
   };
 
   const resetScores = async () => {
     if (window.confirm("Are you sure you want to reset all team scores to 0?")) {
+      setIsLoading(true);
       for (const t of teams) {
         await updateDoc(doc(db, "teams", t.id), { score: 0 });
       }
+      setIsLoading(false);
     }
   };
 
   const triggerElimination = async (team) => {
     if (!window.confirm(`Are you sure you want to eliminate ${team.name}?`)) return;
-    
+    setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
-    
-    // Start countdown
     for (let i = 10; i > 0; i--) {
       await updateDoc(docRef, { status: "elimination_countdown", timerValue: i, targetTeam: team.name });
       await new Promise(r => setTimeout(r, 1000));
     }
-
-    // Reveal and update DB
     await updateDoc(docRef, { status: "eliminated_revealed", timerValue: 0 });
     await updateDoc(doc(db, "teams", team.id), { eliminated: true });
+    setIsLoading(false);
   };
 
   const triggerWinner = async (team) => {
     if (!window.confirm(`Are you sure you want to declare ${team.name} as the WINNER?`)) return;
-    
+    setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
-    
-    // Start countdown
     for (let i = 10; i > 0; i--) {
       await updateDoc(docRef, { status: "winner_countdown", timerValue: i, targetTeam: team.name });
       await new Promise(r => setTimeout(r, 1000));
     }
-
-    // Reveal
     await updateDoc(docRef, { status: "winner_revealed", timerValue: 0 });
+    setIsLoading(false);
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-dark-bg font-sans">
+    <div className="flex h-screen overflow-hidden bg-dark-bg font-sans relative">
+      {/* GLOBAL LOADING OVERLAY */}
+      {isLoading && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-dark-bg/80 backdrop-blur-md">
+          <div className="w-16 h-16 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin mb-6"></div>
+          <h2 className="text-2xl font-mono font-bold text-neon-blue tracking-widest uppercase animate-pulse">Processing...</h2>
+        </div>
+      )}
+
       {/* Sidebar */}
       <nav className="w-64 glass-panel border-r border-white/10 flex flex-col p-6 space-y-4">
         <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple mb-8 uppercase tracking-widest">
