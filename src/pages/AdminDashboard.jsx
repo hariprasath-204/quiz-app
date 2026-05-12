@@ -16,6 +16,7 @@ export default function AdminDashboard() {
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctIdx, setCorrectIdx] = useState(0);
   const [roundSelect, setRoundSelect] = useState('1');
+  const [editingId, setEditingId] = useState(null);
   
   // Selection States
   const [elimTargetId, setElimTargetId] = useState('');
@@ -91,17 +92,40 @@ export default function AdminDashboard() {
     }
 
     setIsLoading(true);
-    await addDoc(collection(db, "questions"), {
-      text: qText,
-      options,
-      correct: parseInt(correctIdx),
-      round: parseInt(roundSelect),
-      pushed: false
-    });
+    
+    if (editingId) {
+      await updateDoc(doc(db, "questions", editingId), {
+        text: qText,
+        options,
+        correct: parseInt(correctIdx),
+        round: parseInt(roundSelect)
+      });
+      alert("Question Updated!");
+      setEditingId(null);
+    } else {
+      await addDoc(collection(db, "questions"), {
+        text: qText,
+        options,
+        correct: parseInt(correctIdx),
+        round: parseInt(roundSelect),
+        pushed: false
+      });
+      alert("Question Saved to Bank!");
+    }
+    
     setQText('');
     setOptions(['', '', '', '']);
     setIsLoading(false);
-    alert("Question Saved to Bank!");
+  };
+
+  const editQuestion = (q) => {
+    setQText(q.text);
+    setOptions(q.options || ['', '', '', '']);
+    setCorrectIdx(q.correct !== undefined ? q.correct.toString() : '0');
+    setRoundSelect(q.round ? q.round.toString() : '1');
+    setEditingId(q.id);
+    // Scroll to top smoothly
+    document.querySelector('.h-screen').scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const pushQuestion = async (q) => {
@@ -380,25 +404,45 @@ export default function AdminDashboard() {
                   <option key={r.id} value={r.id}>Round {r.id} ({r.capacity} Questions)</option>
                 ))}
               </select>
-              <motion.button 
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={saveQuestion} 
-                className="w-full bg-neon-purple/20 text-neon-purple border border-neon-purple p-4 rounded-xl font-bold font-mono hover:bg-neon-purple/30 transition-all shadow-[0_0_15px_rgba(176,38,255,0.3)]"
-              >
-                SAVE TO BANK
-              </motion.button>
+              <div className="flex gap-4">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={saveQuestion} 
+                  className="flex-1 bg-neon-purple/20 text-neon-purple border border-neon-purple p-4 rounded-xl font-bold font-mono hover:bg-neon-purple/30 transition-all shadow-[0_0_15px_rgba(176,38,255,0.3)]"
+                >
+                  {editingId ? "UPDATE QUESTION" : "SAVE TO BANK"}
+                </motion.button>
+                {editingId && (
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setEditingId(null);
+                      setQText('');
+                      setOptions(['', '', '', '']);
+                    }} 
+                    className="bg-white/10 text-white/50 border border-white/20 p-4 rounded-xl font-bold font-mono hover:bg-white/20 transition-all"
+                  >
+                    CANCEL
+                  </motion.button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-3">
               {questions.map((q) => (
-                <div key={q.id} className="glass-panel p-4 rounded-xl flex justify-between items-center border-l-4 border-neon-purple/50">
+                <div key={q.id} className={`glass-panel p-4 rounded-xl flex justify-between items-center border-l-4 border-neon-purple/50 ${editingId === q.id ? 'bg-neon-purple/10' : ''}`}>
                   <div>
                     <span className="font-medium">{q.text}</span>
                     <span className="ml-3 text-xs text-white/40 font-mono">Round {q.round || 1}</span>
                   </div>
-                  <button onClick={() => deleteDoc(doc(db, 'questions', q.id))} className="text-white/30 hover:text-red-500 font-mono text-sm transition-colors">
-                    Delete
-                  </button>
+                  <div className="flex gap-4 items-center">
+                    <button onClick={() => editQuestion(q)} className="text-white/30 hover:text-neon-blue font-mono text-sm transition-colors uppercase tracking-widest">
+                      Edit
+                    </button>
+                    <button onClick={() => deleteDoc(doc(db, 'questions', q.id))} className="text-white/30 hover:text-red-500 font-mono text-sm transition-colors uppercase tracking-widest">
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
               {questions.length === 0 && <p className="text-white/30 font-mono italic">No questions in bank.</p>}
