@@ -116,6 +116,37 @@ export default function AdminDashboard() {
     }
   };
 
+  const triggerElimination = async (team) => {
+    if (!window.confirm(`Are you sure you want to eliminate ${team.name}?`)) return;
+    
+    const docRef = doc(db, "game_state", "current");
+    
+    // Start countdown
+    for (let i = 10; i > 0; i--) {
+      await updateDoc(docRef, { status: "elimination_countdown", timerValue: i, targetTeam: team.name });
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // Reveal and update DB
+    await updateDoc(docRef, { status: "eliminated_revealed", timerValue: 0 });
+    await updateDoc(doc(db, "teams", team.id), { eliminated: true });
+  };
+
+  const triggerWinner = async (team) => {
+    if (!window.confirm(`Are you sure you want to declare ${team.name} as the WINNER?`)) return;
+    
+    const docRef = doc(db, "game_state", "current");
+    
+    // Start countdown
+    for (let i = 10; i > 0; i--) {
+      await updateDoc(docRef, { status: "winner_countdown", timerValue: i, targetTeam: team.name });
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // Reveal
+    await updateDoc(docRef, { status: "winner_revealed", timerValue: 0 });
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-dark-bg font-sans">
       {/* Sidebar */}
@@ -147,6 +178,18 @@ export default function AdminDashboard() {
           className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'teams' ? 'text-neon-pink bg-neon-pink/10 border-r-4 border-neon-pink' : 'text-white/60 hover:bg-white/5'}`}
         >
           👥 Teams
+        </button>
+        <button 
+          onClick={() => setActiveTab('eliminations')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'eliminations' ? 'text-red-500 bg-red-500/10 border-r-4 border-red-500' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          ❌ Eliminations
+        </button>
+        <button 
+          onClick={() => setActiveTab('winner')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'winner' ? 'text-yellow-400 bg-yellow-400/10 border-r-4 border-yellow-400' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          🏆 Grand Winner
         </button>
       </nav>
 
@@ -359,9 +402,11 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {teams.map((t, i) => (
-                    <tr key={t.id} className="hover:bg-white/5 transition-colors">
+                    <tr key={t.id} className={`hover:bg-white/5 transition-colors ${t.eliminated ? 'opacity-30' : ''}`}>
                       <td className="p-4 font-mono text-neon-blue">{i+1}</td>
-                      <td className="p-4 font-bold font-mono">{t.name}</td>
+                      <td className="p-4 font-bold font-mono">
+                        {t.name} {t.eliminated && <span className="text-red-500 ml-2 text-xs uppercase tracking-widest">[ELIMINATED]</span>}
+                      </td>
                       <td className="p-4 text-neon-pink font-mono">{t.score}</td>
                       <td className="p-4 text-right">
                         <button 
@@ -380,6 +425,88 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {/* ELIMINATIONS TAB */}
+        {activeTab === 'eliminations' && (
+          <section className="animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold font-mono text-red-500">Elimination Control</h2>
+              <a 
+                href="/elimination" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="bg-red-500/10 text-red-500 border border-red-500 font-bold font-mono px-6 py-2 rounded-xl hover:bg-red-500/20 transition-all flex items-center gap-2"
+              >
+                OPEN ELIMINATION SCREEN ↗
+              </a>
+            </div>
+            
+            <p className="text-white/50 font-mono mb-8">Select a team to trigger the 10-second dramatic countdown and eliminate them from the game.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {teams.filter(t => !t.eliminated).map(t => (
+                <div key={t.id} className="glass-panel p-6 rounded-2xl flex justify-between items-center border-l-4 border-red-500/50 hover:border-red-500 transition-all">
+                  <div>
+                    <h3 className="text-2xl font-black font-mono tracking-widest">{t.name}</h3>
+                    <p className="text-white/40 font-mono text-sm mt-1">{t.score} Points</p>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => triggerElimination(t)}
+                    className="bg-red-500/20 text-red-500 px-6 py-3 rounded-xl font-bold font-mono uppercase tracking-widest border border-red-500 hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                  >
+                    Eliminate
+                  </motion.button>
+                </div>
+              ))}
+              {teams.filter(t => !t.eliminated).length === 0 && (
+                <p className="text-white/30 font-mono italic p-4">No active teams left to eliminate.</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* WINNER TAB */}
+        {activeTab === 'winner' && (
+          <section className="animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold font-mono text-yellow-400">Grand Winner Reveal</h2>
+              <a 
+                href="/winner" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="bg-yellow-400/10 text-yellow-400 border border-yellow-400 font-bold font-mono px-6 py-2 rounded-xl hover:bg-yellow-400/20 transition-all flex items-center gap-2"
+              >
+                OPEN WINNER SCREEN ↗
+              </a>
+            </div>
+            
+            <p className="text-white/50 font-mono mb-8">Select the winning team to trigger the grand finale countdown and golden reveal animation.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {teams.filter(t => !t.eliminated).map((t, i) => (
+                <div key={t.id} className="glass-panel p-6 rounded-2xl flex justify-between items-center border-l-4 border-yellow-400/50 hover:border-yellow-400 transition-all">
+                  <div>
+                    <h3 className="text-2xl font-black font-mono tracking-widest">{t.name}</h3>
+                    <p className="text-white/40 font-mono text-sm mt-1">{t.score} Points (Rank #{i+1})</p>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => triggerWinner(t)}
+                    className="bg-yellow-400/20 text-yellow-400 px-6 py-3 rounded-xl font-bold font-mono uppercase tracking-widest border border-yellow-400 hover:bg-yellow-400 hover:text-black transition-all shadow-[0_0_15px_rgba(250,204,21,0.3)]"
+                  >
+                    Crown Winner
+                  </motion.button>
+                </div>
+              ))}
+              {teams.filter(t => !t.eliminated).length === 0 && (
+                <p className="text-white/30 font-mono italic p-4">No active teams.</p>
+              )}
             </div>
           </section>
         )}

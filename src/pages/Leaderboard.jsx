@@ -10,7 +10,11 @@ export default function Leaderboard() {
   useEffect(() => {
     const unSubTeams = onSnapshot(collection(db, "teams"), (s) => {
       const t = [];
-      s.forEach(d => t.push({ id: d.id, ...d.data() }));
+      s.forEach(d => {
+        if (!d.data().eliminated) {
+          t.push({ id: d.id, ...d.data() });
+        }
+      });
       // Sort descending (Rank 1 at index 0)
       setTeams(t.sort((a, b) => b.score - a.score));
     });
