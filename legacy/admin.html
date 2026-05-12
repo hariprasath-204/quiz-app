@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Master | Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .sidebar-active { color: #22d3ee; border-right: 4px solid #22d3ee; background: rgba(34, 211, 238, 0.1); }
+        .card { background: #1e293b; border: 1px solid #334155; }
+        input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 0.75rem; border-radius: 0.5rem; width: 100%; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <nav class="w-64 bg-slate-950 flex flex-col p-6 space-y-4 border-r border-slate-800">
+        <h1 class="text-2xl font-black text-cyan-400 mb-8 tracking-tighter italic uppercase">Master Panel</h1>
+        <button onclick="showTab('live')" id="btn-live" class="sidebar-active p-3 text-left rounded-lg transition-all">🔴 Live Control</button>
+        <button onclick="showTab('questions')" id="btn-questions" class="p-3 text-left rounded-lg transition-all">📁 Question Bank</button>
+        <button onclick="showTab('teams')" id="btn-teams" class="p-3 text-left rounded-lg transition-all">👥 Teams</button>
+    </nav>
+
+    <main class="flex-1 p-10 overflow-y-auto">
+        <!-- LIVE CONTROL -->
+        <section id="live" class="tab-content block">
+            <h2 class="text-3xl font-bold mb-6">Live Event Control</h2>
+            <div class="card p-8 rounded-2xl mb-6 shadow-2xl">
+                <p class="text-slate-400 uppercase text-xs font-bold tracking-widest mb-2">Active Question (Organizer View)</p>
+                <h3 id="activeQText" class="text-2xl font-medium text-white mb-6 italic">No Question Pushed</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="startSequence()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-4 rounded-xl shadow-lg shadow-cyan-500/20">START 3-2-1 & OPEN BUZZER</button>
+                    <button onclick="forceAnswering()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-4 rounded-xl">FORCE START ANSWERING</button>
+                    <button onclick="resetSystem()" class="bg-rose-500 hover:bg-rose-400 text-white font-bold py-4 rounded-xl">RESET ALL</button>
+                </div>
+            </div>
+
+            <div class="card p-8 rounded-2xl">
+                <h3 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2">Buzzer Queue (First 4 Teams)</h3>
+                <div id="queueList" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- QUESTIONS TAB -->
+        <section id="questions" class="tab-content hidden">
+            <h2 class="text-3xl font-bold mb-6">Manage Questions</h2>
+            <div class="card p-6 rounded-2xl mb-8">
+                <div class="grid gap-4">
+                    <input type="text" id="qIn" placeholder="Enter Question Text (Reference for you)">
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="text" id="o0" placeholder="Option A">
+                        <input type="text" id="o1" placeholder="Option B">
+                        <input type="text" id="o2" placeholder="Option C">
+                        <input type="text" id="o3" placeholder="Option D">
+                    </div>
+                    <select id="correctIdx">
+                        <option value="0">Correct: Option A</option>
+                        <option value="1">Correct: Option B</option>
+                        <option value="2">Correct: Option C</option>
+                        <option value="3">Correct: Option D</option>
+                    </select>
+                    <button onclick="saveQuestion()" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold p-3 rounded-lg">SAVE TO BANK</button>
+                </div>
+            </div>
+            <div id="questionsContainer" class="space-y-2"></div>
+        </section>
+
+        <!-- TEAMS TAB -->
+        <section id="teams" class="tab-content hidden">
+            <h2 class="text-3xl font-bold mb-6">Teams & Leaderboard</h2>
+            <div class="flex gap-4 mb-8">
+                <input type="text" id="teamIn" placeholder="Team Name" class="flex-1">
+                <button onclick="addTeam()" class="bg-cyan-500 text-slate-950 font-bold px-8 rounded-lg">ADD TEAM</button>
+            </div>
+            <div class="card rounded-2xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-800 text-slate-400 text-sm">
+                        <tr><th class="p-4">Rank</th><th class="p-4">Team</th><th class="p-4">Score</th><th class="p-4">Action</th></tr>
+                    </thead>
+                    <tbody id="leaderboardBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWOqj1xGfDt-b27EDRSPXQ_D0GrOSxw88",
+            authDomain: "quiz-app-c8bfc.firebaseapp.com",
+            projectId: "quiz-app-c8bfc",
+            storageBucket: "quiz-app-c8bfc.firebasestorage.app",
+            messagingSenderId: "1073922729062",
+            appId: "1:1073922729062:web:a33640a58db80be36c79a7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const docRef = doc(db, "game_state", "current");
+
+        window.showTab = (id) => {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('sidebar-active'));
+            document.getElementById('btn-'+id).classList.add('sidebar-active');
+        };
+
+        window.saveQuestion = () => {
+            addDoc(collection(db, "questions"), {
+                text: document.getElementById('qIn').value,
+                options: [document.getElementById('o0').value, document.getElementById('o1').value, document.getElementById('o2').value, document.getElementById('o3').value],
+                correct: parseInt(document.getElementById('correctIdx').value)
+            });
+            alert("Question Saved!");
+        };
+
+        window.pushQuestion = (q) => {
+            setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0 }, {merge: true});
+            showTab('live');
+        };
+
+        window.startSequence = async () => {
+            // 3-2-1 Countdown
+            for (let i = 3; i > 0; i--) {
+                await updateDoc(docRef, { status: "countdown", timerValue: i, queue: [] });
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            // Buzzer Open (10s)
+            await updateDoc(docRef, { status: "buzzer_open", timerValue: 10 });
+            let timeLeft = 10;
+            const timerInterval = setInterval(async () => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    await updateDoc(docRef, { timerValue: timeLeft });
+                } else {
+                    clearInterval(timerInterval);
+                    forceAnswering(); // Automatically transition when time is up
+                }
+            }, 1000);
+        };
+
+        window.forceAnswering = async () => {
+            const snap = await getDoc(docRef);
+            const data = snap.data();
+            if (data && data.queue && data.queue.length > 0) {
+                await updateDoc(docRef, { status: "answering", timerValue: 0 });
+            } else {
+                await updateDoc(docRef, { status: "waiting", timerValue: 0 });
+            }
+        };
+
+        window.resetSystem = () => {
+            setDoc(docRef, { status: "waiting", queue: [], timerValue: 0 }, {merge: true});
+        };
+
+        window.addTeam = () => {
+            addDoc(collection(db, "teams"), { name: document.getElementById('teamIn').value, score: 0 });
+            document.getElementById('teamIn').value = "";
+        };
+
+        onSnapshot(docRef, (s) => {
+            const data = s.data();
+            document.getElementById('activeQText').innerText = data?.activeQ?.text || "No Question Pushed";
+            const qList = document.getElementById('queueList');
+            qList.innerHTML = "";
+            data?.queue?.slice(0, 4).forEach((team, i) => {
+                qList.innerHTML += `
+                    <div class="flex items-center justify-between bg-slate-800 p-4 rounded-xl border-l-4 border-cyan-500">
+                        <span class="font-bold text-lg">#${i+1} ${team}</span>
+                        <span class="text-xs text-slate-400 uppercase font-black">Ready to answer</span>
+                    </div>`;
+            });
+        });
+
+        onSnapshot(collection(db, "questions"), (s) => {
+            const cont = document.getElementById('questionsContainer'); cont.innerHTML = "";
+            s.forEach(d => {
+                const q = d.data();
+                const div = document.createElement('div');
+                div.className = "card p-4 rounded-xl flex justify-between items-center mb-2";
+                div.innerHTML = `<span>${q.text}</span> <button class="bg-cyan-500/20 text-cyan-400 px-4 py-1 rounded-lg">PUSH LIVE</button>`;
+                div.querySelector('button').onclick = () => pushQuestion(q);
+                cont.appendChild(div);
+            });
+        });
+
+        onSnapshot(collection(db, "teams"), (s) => {
+            const lb = document.getElementById('leaderboardBody'); lb.innerHTML = "";
+            let teams = [];
+            s.forEach(d => teams.push({id: d.id, ...d.data()}));
+            teams.sort((a,b) => b.score - a.score).forEach((t, i) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800";
+                tr.innerHTML = `<td class="p-4">${i+1}</td><td class="p-4 font-bold">${t.name}</td><td class="p-4 text-cyan-400">${t.score}</td><td class="p-4"><button class="text-rose-500">Delete</button></td>`;
+                tr.querySelector('button').onclick = () => deleteDoc(doc(db, 'teams', t.id));
+                lb.appendChild(tr);
+            });
+        });
+    </script>
+</body>
+</html>

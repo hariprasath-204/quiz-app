@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Portal | Team Battle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; overflow: hidden; }
+        .buzzer-active { 
+            background: radial-gradient(circle, #f43f5e 0%, #9f1239 100%); 
+            box-shadow: 0 0 50px rgba(244, 63, 94, 0.4); 
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .option-btn {
+            background-color: #3b82f6; color: white; padding: 2.5rem; border-radius: 1.5rem;
+            font-weight: bold; font-size: 1.8rem; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: center; min-height: 140px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+        .option-btn:hover { background-color: #2563eb; transform: translateY(-4px); }
+        .option-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen p-6">
+
+    <div id="loginSection" class="w-full max-w-md bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 shadow-2xl">
+        <h1 class="text-4xl font-black text-center text-cyan-400 mb-10 tracking-tighter uppercase italic">Team Entry</h1>
+        <input type="text" id="teamInput" placeholder="Enter Team Name" class="w-full p-5 rounded-2xl bg-slate-800 border border-slate-700 text-white mb-8 outline-none focus:ring-4 focus:ring-cyan-500/20 transition-all text-lg">
+        <button onclick="login()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-5 rounded-2xl shadow-xl shadow-cyan-500/20 active:scale-95 transition-all text-xl">JOIN ARENA</button>
+    </div>
+
+    <div id="gameSection" class="hidden w-full max-w-3xl text-center">
+        <div class="mb-10">
+            <h2 id="teamLabel" class="text-white text-5xl font-black tracking-tight mb-3"></h2>
+            <p id="msg" class="text-cyan-500/50 font-bold uppercase tracking-widest text-sm">System Synchronized</p>
+        </div>
+
+        <!-- Countdown Overlay -->
+        <div id="countdownOverlay" class="hidden fixed inset-0 z-50 bg-slate-950/98 flex flex-col items-center justify-center">
+            <h1 id="countText" class="text-[20rem] font-black text-cyan-400 leading-none drop-shadow-[0_0_50px_rgba(34,211,238,0.4)]">3</h1>
+            <p class="text-cyan-400 font-bold tracking-[1em] uppercase mt-10 text-2xl">Get Ready!</p>
+        </div>
+
+        <!-- Buzzer Interface -->
+        <div id="buzzerArea" class="flex flex-col items-center">
+            <button id="buzzBtn" onclick="sendBuzz()" disabled class="w-80 h-80 rounded-full border-[20px] border-slate-800 bg-slate-800 flex items-center justify-center text-6xl font-black transition-all active:scale-90">BUZZ</button>
+            <div class="mt-16 flex flex-col items-center">
+                <span id="timerValue" class="text-7xl font-mono font-black text-slate-800">00:00</span>
+            </div>
+        </div>
+
+        <!-- Answering Interface -->
+        <div id="answeringArea" class="hidden">
+            <div class="mb-12">
+                <h4 class="text-amber-400 font-black text-5xl uppercase tracking-tighter drop-shadow-lg">YOUR TURN!</h4>
+                <p class="text-slate-500 mt-2 font-bold uppercase tracking-widest">Select the correct answer on screen</p>
+            </div>
+            <div id="optionsGrid" class="grid grid-cols-2 gap-8">
+                <!-- Buttons injected by script -->
+            </div>
+        </div>
+
+        <!-- Blocked Interface -->
+        <div id="blockedArea" class="hidden p-16 bg-slate-900 border border-slate-800 rounded-[4rem]">
+            <div class="animate-pulse flex flex-col items-center">
+                <div class="w-24 h-24 border-8 border-slate-800 border-t-rose-500 rounded-full animate-spin mb-8"></div>
+                <h4 id="blockedMsg" class="text-slate-300 text-3xl font-black italic tracking-tight">WAITING...</h4>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWOqj1xGfDt-b27EDRSPXQ_D0GrOSxw88",
+            authDomain: "quiz-app-c8bfc.firebaseapp.com",
+            projectId: "quiz-app-c8bfc",
+            storageBucket: "quiz-app-c8bfc.firebasestorage.app",
+            messagingSenderId: "1073922729062",
+            appId: "1:1073922729062:web:a33640a58db80be36c79a7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const docRef = doc(db, "game_state", "current");
+        let myTeam = "";
+
+        signInAnonymously(auth).catch(err => console.error("Auth:", err));
+
+        window.login = () => {
+            myTeam = document.getElementById('teamInput').value.trim();
+            if(!myTeam) return;
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('gameSection').classList.remove('hidden');
+            document.getElementById('teamLabel').innerText = "Team: " + myTeam;
+        };
+
+        window.sendBuzz = () => {
+            updateDoc(docRef, { queue: arrayUnion(myTeam) });
+        };
+
+        window.handleAns = async (idx, correctIdx, currentQueue) => {
+            if(idx === correctIdx) {
+                const points = [10, 7, 5, 3];
+                const turnIndex = 4 - currentQueue.length; 
+                const pts = points[turnIndex] || 0;
+
+                const q = query(collection(db, "teams"));
+                const snap = await getDocs(q);
+                snap.forEach(async (d) => {
+                    if(d.data().name === myTeam) {
+                        await updateDoc(doc(db, "teams", d.id), { score: d.data().score + pts });
+                    }
+                });
+                await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
+                alert("CORRECT! Resetting Buzzer.");
+            } else {
+                await updateDoc(docRef, { queue: arrayRemove(myTeam) });
+                if(currentQueue.length <= 1) {
+                    await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
+                }
+                alert("WRONG! Next team's turn.");
+            }
+        };
+
+        onSnapshot(docRef, (snapshot) => {
+            const data = snapshot.data();
+            if(!data) return;
+
+            const btn = document.getElementById('buzzBtn');
+            const overlay = document.getElementById('countdownOverlay');
+            const buzzArea = document.getElementById('buzzerArea');
+            const ansArea = document.getElementById('answeringArea');
+            const blockArea = document.getElementById('blockedArea');
+            const timerVal = document.getElementById('timerValue');
+            const msg = document.getElementById('msg');
+
+            // 1. Countdown Status
+            if(data.status === "countdown") {
+                overlay.classList.remove('hidden');
+                document.getElementById('countText').innerText = data.timerValue;
+                buzzArea.classList.add('hidden');
+                ansArea.classList.add('hidden');
+                blockArea.classList.add('hidden');
+            } 
+            // 2. Buzzer Window (10s)
+            else if(data.status === "buzzer_open") {
+                overlay.classList.add('hidden');
+                buzzArea.classList.remove('hidden');
+                ansArea.classList.add('hidden');
+                blockArea.classList.add('hidden');
+                timerVal.innerText = "00:" + (data.timerValue < 10 ? "0"+data.timerValue : data.timerValue);
+                timerVal.classList.add('text-rose-500');
+                
+                if(!data.queue || !data.queue.includes(myTeam)) {
+                    btn.disabled = false; btn.classList.add('buzzer-active');
+                    msg.innerText = "READY... BUZZ NOW!";
+                } else {
+                    btn.disabled = true; btn.classList.remove('buzzer-active');
+                    msg.innerText = "BUZZED! WAIT FOR TIMER TO END...";
+                }
+            } 
+            // 3. Answering Phase (The fix is here)
+            else if(data.status === "answering" && data.queue && data.queue.length > 0) {
+                overlay.classList.add('hidden');
+                buzzArea.classList.add('hidden');
+                
+                if(data.queue[0] === myTeam) {
+                    ansArea.classList.remove('hidden');
+                    blockArea.classList.add('hidden');
+                    const grid = document.getElementById('optionsGrid'); 
+                    grid.innerHTML = "";
+                    data.activeQ.options.forEach((opt, i) => {
+                        const b = document.createElement('button');
+                        b.className = "option-btn";
+                        b.innerText = opt;
+                        b.onclick = () => handleAns(i, data.activeQ.correct, data.queue);
+                        grid.appendChild(b);
+                    });
+                } else {
+                    ansArea.classList.add('hidden');
+                    blockArea.classList.remove('hidden');
+                    document.getElementById('blockedMsg').innerText = data.queue[0] + " IS ANSWERING...";
+                }
+            } 
+            else {
+                overlay.classList.add('hidden');
+                buzzArea.classList.remove('hidden');
+                ansArea.classList.add('hidden');
+                blockArea.classList.add('hidden');
+                btn.disabled = true; btn.classList.remove('buzzer-active');
+                timerVal.innerText = "00:00";
+                timerVal.classList.remove('text-rose-500');
+                msg.innerText = "Wait for moderator...";
+            }
+        });
+    </script>
+</body>
+</html>

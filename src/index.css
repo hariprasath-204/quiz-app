@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-bg text-white overflow-hidden;
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(176, 38, 255, 0.1), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.1), transparent 25%);
+  }
+}
+
+.glass-panel {
+  @apply bg-dark-surface border border-dark-border backdrop-blur-md shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink;
+}
+
+.buzzer-active {
+  background: radial-gradient(circle, #ff007f 0%, #b026ff 100%);
+  box-shadow: 0 0 50px rgba(255, 0, 127, 0.6);
+  animation: pulse-ring 1.5s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 127, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 30px rgba(255, 0, 127, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 127, 0); }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #05050f;
+}
+::-webkit-scrollbar-thumb {
+  background: #b026ff;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00f3ff;
+}
