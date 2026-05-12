@@ -23,8 +23,12 @@ export default function AdminDashboard() {
   const [winnerId, setWinnerId] = useState('');
   const [runnerId, setRunnerId] = useState('');
 
-  // Loading State
+  // Loading & Modal State
   const [isLoading, setIsLoading] = useState(false);
+  const [modal, setModal] = useState(null); // { message, onConfirm, type: 'alert' | 'confirm' }
+
+  const showAlert = (msg) => setModal({ type: 'alert', message: msg });
+  const showConfirm = (msg, action) => setModal({ type: 'confirm', message: msg, onConfirm: action });
 
   useEffect(() => {
     const docRef = doc(db, "game_state", "current");
@@ -83,11 +87,11 @@ export default function AdminDashboard() {
   const saveQuestion = async () => {
     // Validation
     if (!qText.trim()) {
-      alert("Validation Failed: Please enter a question.");
+      showAlert("Validation Failed: Please enter a question.");
       return;
     }
     if (options.some(opt => !opt.trim())) {
-      alert("Validation Failed: Please fill in all 4 options.");
+      showAlert("Validation Failed: Please fill in all 4 options.");
       return;
     }
 
@@ -100,7 +104,7 @@ export default function AdminDashboard() {
         correct: parseInt(correctIdx),
         round: parseInt(roundSelect)
       });
-      alert("Question Updated!");
+      showAlert("Question Updated!");
       setEditingId(null);
     } else {
       await addDoc(collection(db, "questions"), {
@@ -110,7 +114,7 @@ export default function AdminDashboard() {
         round: parseInt(roundSelect),
         pushed: false
       });
-      alert("Question Saved to Bank!");
+      showAlert("Question Saved to Bank!");
     }
     
     setQText('');
@@ -192,7 +196,7 @@ export default function AdminDashboard() {
 
   const addTeam = async () => {
     if (!newTeam.trim()) {
-      alert("Validation Failed: Please enter a team name.");
+      showAlert("Validation Failed: Please enter a team name.");
       return;
     }
     setIsLoading(true);
@@ -202,51 +206,92 @@ export default function AdminDashboard() {
   };
 
   const resetScores = async () => {
-    if (window.confirm("Are you sure you want to reset all team scores to 0?")) {
+    showConfirm("Are you sure you want to reset all team scores to 0?", async () => {
       setIsLoading(true);
       try {
         await Promise.all(teams.map(t => updateDoc(doc(db, "teams", t.id), { score: 0 })));
-        alert("All scores have been reset to 0!");
+        showAlert("All scores have been reset to 0!");
       } catch (err) {
         console.error(err);
-        alert("Failed to reset scores.");
+        showAlert("Failed to reset scores.");
       }
       setIsLoading(false);
-    }
+    });
   };
 
   const triggerElimination = async () => {
     const team = teams.find(t => t.id === elimTargetId);
     if (!team) return;
-    if (!window.confirm(`Are you sure you want to eliminate ${team.name}?`)) return;
-    setIsLoading(true);
-    const docRef = doc(db, "game_state", "current");
-    for (let i = 10; i > 0; i--) {
-      await updateDoc(docRef, { status: "elimination_countdown", timerValue: i, targetTeam: team.name });
-      await new Promise(r => setTimeout(r, 1000));
-    }
-    await updateDoc(docRef, { status: "eliminated_revealed", timerValue: 0 });
-    await updateDoc(doc(db, "teams", team.id), { eliminated: true });
-    setIsLoading(false);
+    showConfirm(`Are you sure you want to eliminate ${team.name}?`, async () => {
+      setIsLoading(true);
+      const docRef = doc(db, "game_state", "current");
+      for (let i = 10; i > 0; i--) {
+        await updateDoc(docRef, { status: "elimination_countdown", timerValue: i, targetTeam: team.name });
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      await updateDoc(docRef, { status: "eliminated_revealed", timerValue: 0 });
+      await updateDoc(doc(db, "teams", team.id), { eliminated: true });
+      setIsLoading(false);
+    });
   };
 
   const triggerWinner = async () => {
     const wTeam = teams.find(t => t.id === winnerId);
     const rTeam = teams.find(t => t.id === runnerId);
     if (!wTeam) return;
-    if (!window.confirm(`Declare ${wTeam.name} as WINNER and ${rTeam?.name || 'none'} as RUNNER-UP?`)) return;
-    setIsLoading(true);
-    const docRef = doc(db, "game_state", "current");
-    for (let i = 10; i > 0; i--) {
-      await updateDoc(docRef, { status: "winner_countdown", timerValue: i, targetTeam: wTeam.name, runnerTeam: rTeam?.name || '' });
-      await new Promise(r => setTimeout(r, 1000));
-    }
-    await updateDoc(docRef, { status: "winner_revealed", timerValue: 0 });
-    setIsLoading(false);
+    showConfirm(`Declare ${wTeam.name} as WINNER and ${rTeam?.name || 'none'} as RUNNER-UP?`, async () => {
+      setIsLoading(true);
+      const docRef = doc(db, "game_state", "current");
+      for (let i = 10; i > 0; i--) {
+        await updateDoc(docRef, { status: "winner_countdown", timerValue: i, targetTeam: wTeam.name, runnerTeam: rTeam?.name || '' });
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      await updateDoc(docRef, { status: "winner_revealed", timerValue: 0 });
+      setIsLoading(false);
+    });
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-dark-bg font-sans relative">
+      {/* CUSTOM MODAL */}
+      <AnimatePresence>
+        {modal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[200] flex items-center justify-center bg-dark-bg/80 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="glass-panel p-8 rounded-3xl max-w-md w-full border border-neon-blue/30 shadow-[0_0_30px_rgba(0,243,255,0.2)] text-center"
+            >
+              <h3 className="text-2xl font-black font-mono text-white mb-8 tracking-widest leading-relaxed">
+                {modal.message}
+              </h3>
+              <div className="flex gap-4 justify-center">
+                <button 
+                  onClick={() => setModal(null)}
+                  className="px-6 py-3 rounded-xl font-mono font-bold uppercase tracking-widest text-white/50 border border-white/20 hover:bg-white/10 hover:text-white transition-all"
+                >
+                  {modal.type === 'confirm' ? 'CANCEL' : 'OKAY'}
+                </button>
+                {modal.type === 'confirm' && (
+                  <button 
+                    onClick={() => { modal.onConfirm(); setModal(null); }}
+                    className="px-6 py-3 rounded-xl font-mono font-bold uppercase tracking-widest bg-neon-blue/20 text-neon-blue border border-neon-blue hover:bg-neon-blue hover:text-dark-bg transition-all shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+                  >
+                    CONFIRM
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* GLOBAL LOADING OVERLAY */}
       {isLoading && (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-dark-bg/80 backdrop-blur-md">
