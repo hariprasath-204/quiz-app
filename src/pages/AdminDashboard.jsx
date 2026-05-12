@@ -177,6 +177,20 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
+  const resetScores = async () => {
+    if (window.confirm("Are you sure you want to reset all team scores to 0?")) {
+      setIsLoading(true);
+      try {
+        await Promise.all(teams.map(t => updateDoc(doc(db, "teams", t.id), { score: 0 })));
+        alert("All scores have been reset to 0!");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to reset scores.");
+      }
+      setIsLoading(false);
+    }
+  };
+
   const triggerElimination = async () => {
     const team = teams.find(t => t.id === elimTargetId);
     if (!team) return;
@@ -466,6 +480,9 @@ export default function AdminDashboard() {
               />
               <button onClick={addTeam} className="bg-neon-pink/20 text-neon-pink border border-neon-pink font-bold font-mono px-8 py-4 rounded-xl hover:bg-neon-pink/30 transition-all">
                 ADD TEAM
+              </button>
+              <button onClick={resetScores} className="bg-red-500/10 text-red-500 border border-red-500/50 font-bold font-mono px-8 py-4 rounded-xl hover:bg-red-500/20 transition-all">
+                RESET SCORES
               </button>
             </div>
 
