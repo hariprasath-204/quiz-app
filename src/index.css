@@ -8,6 +8,11 @@
     background-image: 
       radial-gradient(circle at 15% 50%, rgba(176, 38, 255, 0.1), transparent 25%),
       radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.1), transparent 25%);
+    cursor: none !important;
+  }
+  
+  * {
+    cursor: none !important;
   }
 }
 

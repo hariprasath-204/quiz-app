@@ -3,11 +3,15 @@ import LandingPage from './pages/LandingPage';
 import ClientPortal from './pages/ClientPortal';
 import AdminDashboard from './pages/AdminDashboard';
 import Leaderboard from './pages/Leaderboard';
+import Background from './components/Background';
+import CustomCursor from './components/CustomCursor';
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen w-full font-sans text-white">
+      <Background />
+      <CustomCursor />
+      <div className="min-h-screen w-full font-sans text-white relative z-10 cursor-none">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/arena" element={<ClientPortal />} />
