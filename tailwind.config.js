@@ -26,6 +26,7 @@ export default {
       animation: {
         'glow-pulse': 'glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'float': 'float 3s ease-in-out infinite',
+        'grid-move': 'gridMove 15s linear infinite',
       },
       keyframes: {
         glow: {
@@ -35,6 +36,10 @@ export default {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        gridMove: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(40px)' },
         }
       }
     },

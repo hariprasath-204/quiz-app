@@ -115,9 +115,7 @@ export default function Leaderboard() {
                       {team.name}
                     </div>
                   </div>
-                  <div className="text-3xl md:text-4xl font-black font-mono tracking-widest drop-shadow-md">
-                    {team.score} <span className="text-sm font-medium text-opacity-50">PTS</span>
-                  </div>
+                  {/* Score removed from team display */}
                 </motion.div>
               );
             })}
