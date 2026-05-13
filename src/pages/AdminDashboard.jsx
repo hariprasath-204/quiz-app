@@ -99,11 +99,12 @@ export default function AdminDashboard() {
     }
   }, [activeTab, teams]);
 
-  // Handle pass to next team
+  // KEY FIX: Auto-progress to next team's answering when status is pass_to_next
   useEffect(() => {
-    if (gameState?.status === "pass_to_next" && gameState?.queue?.length > 0) {
+    if (gameState?.status === 'pass_to_next' && gameState?.queue?.length > 0) {
       startAnswerTimer(gameState.queue);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.status]);
 
   const saveSettings = async () => {
@@ -305,12 +306,15 @@ export default function AdminDashboard() {
         await Promise.all(updates);
         
         await updateDoc(doc(db, "game_state", "current"), { 
+          status: "game_over",
           tieBreakerActive: false,
           tieBreakerTeams: [],
-          activeQ: null
+          activeQ: null,
+          queue: [],
+          timerValue: 0
         });
         
-        showAlert("Game Finished! All questions unlocked successfully.");
+        showAlert("Game Finished! Clients are now seeing the Game Over screen.");
       } catch (err) {
         console.error(err);
         showAlert("Failed to unlock questions.");
