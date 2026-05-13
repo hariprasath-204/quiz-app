@@ -153,7 +153,7 @@ export default function AdminDashboard() {
         text: qText,
         options,
         correct: parseInt(correctIdx),
-        round: roundSelect
+        round: roundSelect === 'tie_breaker' ? 'tie_breaker' : parseInt(roundSelect)
       });
       showAlert("Question Updated!");
       setEditingId(null);
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
         text: qText,
         options,
         correct: parseInt(correctIdx),
-        round: roundSelect,
+        round: roundSelect === 'tie_breaker' ? 'tie_breaker' : parseInt(roundSelect),
         pushed: false
       });
       showAlert("Question Saved to Bank!");
