@@ -287,7 +287,8 @@ export default function AdminDashboard() {
           await updateDoc(docRef, { queue: newQueue, attempts: currentAttempts + 1, status: "pass_to_next" });
           startAnswerTimer(newQueue); // Start timer for next team
         } else {
-          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0, attempts: 0 });
+          // All teams exhausted — mark question done
+          await updateDoc(docRef, { status: "question_done", queue: [], timerValue: 0, attempts: 0 });
         }
       }
     }, 1000);

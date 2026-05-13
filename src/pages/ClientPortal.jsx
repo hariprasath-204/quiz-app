@@ -140,7 +140,8 @@ export default function ClientPortal() {
       setPopup({ type: 'correct', msg: 'CORRECT!' });
       setTimeout(async () => {
         setPopup(null);
-        await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
+        // Mark question as done so clients see the "Next Question" screen
+        await updateDoc(docRef, { status: "question_done", queue: [], timerValue: 0, attempts: 0 });
       }, 2500);
 
     } else {
@@ -158,7 +159,7 @@ export default function ClientPortal() {
           await updateDoc(docRef, { queue: newQueue, status: "pass_to_next", attempts: (gameState?.attempts || 0) + 1 });
         } else {
           // All teams exhausted — nobody got it right
-          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0, attempts: 0 });
+          await updateDoc(docRef, { status: "question_done", queue: [], timerValue: 0, attempts: 0 });
         }
       }, 2500);
     }
@@ -407,6 +408,67 @@ export default function ClientPortal() {
           </motion.div>
         )}
 
+        {/* QUESTION DONE OVERLAY — waiting for admin to push next question */}
+        <AnimatePresence>
+          {status === "question_done" && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-dark-bg/95 backdrop-blur-xl rounded-3xl border border-neon-green/20"
+            >
+              {/* Round badge */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                className="bg-neon-blue/10 border border-neon-blue/40 px-8 py-2 rounded-full mb-8"
+              >
+                <span className="text-neon-blue font-mono font-bold uppercase tracking-[0.4em] text-sm">
+                  Round {gameState?.activeQ?.round === 'tie_breaker' ? 'Tie Breaker' : (gameState?.activeQ?.round || 1)}
+                </span>
+              </motion.div>
+
+              {/* Animated checkmark / arrow */}
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="text-7xl mb-6"
+              >
+                ➡️
+              </motion.div>
+
+              <motion.h1
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-3xl md:text-4xl font-black font-mono uppercase tracking-widest text-white mb-3 text-center"
+              >
+                Next Question
+              </motion.h1>
+
+              <motion.p
+                animate={{ opacity: [0.4, 0.9, 0.4] }}
+                transition={{ duration: 2.5, repeat: Infinity }}
+                className="text-white/40 font-mono text-sm uppercase tracking-[0.35em] text-center"
+              >
+                Waiting for admin to push next question...
+              </motion.p>
+
+              {/* Locked buzzer indicator */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-10 flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-3 rounded-full"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-white/30 font-mono text-xs uppercase tracking-widest">Buzzer Locked</span>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* QUEUE PROCESSING OVERLAY — admin is verifying */}
         <AnimatePresence>
           {status === "queue_processing" && !isLockedByTieBreaker && (
@@ -482,7 +544,7 @@ export default function ClientPortal() {
         </AnimatePresence>
 
         {/* BUZZER AREA */}
-        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && status !== "queue_processing" && !isLockedByTieBreaker && (
+        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && status !== "queue_processing" && status !== "question_done" && !isLockedByTieBreaker && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
