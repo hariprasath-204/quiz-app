@@ -525,10 +525,45 @@ export default function AdminDashboard() {
             <h2 className="text-3xl font-bold mb-6 font-mono text-neon-blue">Live Event Control</h2>
             
             <div className="glass-panel p-8 rounded-2xl mb-6">
-              <p className="text-white/50 uppercase text-xs font-bold tracking-widest mb-2 font-mono">Active Question (Organizer View)</p>
-              <h3 className="text-2xl font-medium text-white mb-6">
-                {gameState?.activeQ?.text || "No Question Pushed"}
-              </h3>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="text-white/50 uppercase text-xs font-bold tracking-widest mb-2 font-mono">Active Question (Organizer View)</p>
+                  <h3 className="text-2xl font-medium text-white">
+                    {gameState?.activeQ?.text || "No Question Pushed"}
+                  </h3>
+                  {gameState?.activeQ && (
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                      {gameState.activeQ.options?.map((opt, i) => (
+                        <div key={i} className={`text-sm p-2 rounded-lg font-mono ${
+                          gameState.activeQ.correct === i 
+                            ? 'bg-neon-green/20 border border-neon-green text-neon-green' 
+                            : 'bg-white/5 border border-white/10 text-white/50'
+                        }`}>
+                          {['A', 'B', 'C', 'D'][i]}. {opt}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {gameState?.activeQ && (
+                  <button
+                    onClick={() => showConfirm("Remove the active question? It will be unlocked and can be pushed again.", async () => {
+                      setIsLoading(true);
+                      const activeQId = gameState.activeQ?.id;
+                      await updateDoc(doc(db, "game_state", "current"), { 
+                        activeQ: null, status: "waiting", queue: [], timerValue: 0 
+                      });
+                      if (activeQId) {
+                        await updateDoc(doc(db, "questions", activeQId), { pushed: false });
+                      }
+                      setIsLoading(false);
+                    })}
+                    className="ml-6 mt-1 text-xs bg-red-500/10 text-red-500 border border-red-500/40 px-4 py-2 rounded-lg hover:bg-red-500/20 transition-all font-mono font-bold uppercase tracking-widest flex-shrink-0"
+                  >
+                    ✕ Remove
+                  </button>
+                )}
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
                 {gameState?.activeQ ? (
