@@ -203,94 +203,99 @@ export default function ClientPortal() {
   if (status === 'game_over') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-dark-bg">
-        {/* Animated background */}
-        <div className="absolute inset-0 z-0">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full opacity-20"
-              style={{
-                width: Math.random() * 300 + 50,
-                height: Math.random() * 300 + 50,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                background: ['#00f3ff','#b026ff','#ff007f','#00ff66'][i % 4]
-              }}
-              animate={{
-                scale: [1, 1.5, 1],
-                opacity: [0.1, 0.3, 0.1],
-                x: [0, Math.random() * 100 - 50, 0],
-                y: [0, Math.random() * 100 - 50, 0],
-              }}
-              transition={{ duration: Math.random() * 4 + 3, repeat: Infinity, ease: 'easeInOut', delay: i * 0.2 }}
-            />
-          ))}
-        </div>
 
-        {/* Particle burst effect */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          {[...Array(30)].map((_, i) => (
-            <motion.div
-              key={`star-${i}`}
-              className="absolute w-1 h-1 rounded-full bg-yellow-400"
-              style={{ left: '50%', top: '40%' }}
-              animate={{
-                x: (Math.random() - 0.5) * 800,
-                y: (Math.random() - 0.5) * 600,
-                opacity: [1, 1, 0],
-                scale: [0, 2, 0]
-              }}
-              transition={{ duration: 2, repeat: Infinity, delay: i * 0.1, repeatDelay: 2 }}
-            />
-          ))}
-        </div>
+        {/* Pulsing neon ring layers */}
+        {[0,1,2,3].map(i => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full border-2"
+            style={{ borderColor: ['#00f3ff','#b026ff','#ff007f','#00ff66'][i] }}
+            animate={{ scale: [0.5, 3], opacity: [0.6, 0] }}
+            transition={{ duration: 3, repeat: Infinity, delay: i * 0.75, ease: 'easeOut' }}
+          />
+        ))}
+
+        {/* Horizontal scanline sweep */}
+        <motion.div
+          className="absolute left-0 right-0 h-0.5 bg-neon-blue/40 z-0 pointer-events-none"
+          animate={{ top: ['0%', '100%'] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+        />
+
+        {/* Vertical scan */}
+        <motion.div
+          className="absolute top-0 bottom-0 w-0.5 bg-neon-purple/30 z-0 pointer-events-none"
+          animate={{ left: ['0%', '100%'] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'linear', delay: 1 }}
+        />
 
         <div className="z-10 flex flex-col items-center text-center px-6">
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="text-8xl mb-8"
-          >
-            🏆
-          </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: -60 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.8, type: 'spring' }}
-            className="text-6xl md:text-8xl font-black uppercase tracking-widest font-mono text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink drop-shadow-[0_0_30px_rgba(176,38,255,0.7)] mb-4"
-          >
-            GAME OVER
-          </motion.h1>
+          {/* Glitch-style GAME OVER text */}
+          <div className="relative mb-6 select-none">
+            <motion.h1
+              initial={{ opacity: 0, scale: 1.4 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, type: 'spring' }}
+              className="text-6xl md:text-8xl font-black uppercase tracking-widest font-mono text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink drop-shadow-[0_0_40px_rgba(176,38,255,0.8)]"
+            >
+              GAME OVER
+            </motion.h1>
+            {/* Glitch shadow layers */}
+            <motion.h1
+              aria-hidden
+              animate={{ x: [-2, 2, -2], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 0.15, repeat: Infinity, repeatDelay: 3 }}
+              className="absolute inset-0 text-6xl md:text-8xl font-black uppercase tracking-widest font-mono text-neon-pink pointer-events-none"
+              style={{ clipPath: 'inset(40% 0 50% 0)' }}
+            >
+              GAME OVER
+            </motion.h1>
+            <motion.h1
+              aria-hidden
+              animate={{ x: [2, -2, 2], opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 0.12, repeat: Infinity, repeatDelay: 3.5 }}
+              className="absolute inset-0 text-6xl md:text-8xl font-black uppercase tracking-widest font-mono text-neon-blue pointer-events-none"
+              style={{ clipPath: 'inset(60% 0 20% 0)' }}
+            >
+              GAME OVER
+            </motion.h1>
+          </div>
+
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="h-0.5 w-64 bg-gradient-to-r from-neon-blue to-neon-pink mb-8 rounded-full shadow-[0_0_15px_rgba(176,38,255,0.6)]"
+          />
 
           <motion.p
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.6 }}
-            className="text-2xl md:text-3xl font-mono text-white/70 uppercase tracking-[0.3em] mb-12"
+            transition={{ delay: 0.6, duration: 0.6 }}
+            className="text-xl md:text-2xl font-mono text-white/60 uppercase tracking-[0.4em] mb-12"
           >
             Thanks for Playing!
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 1.1, duration: 0.5 }}
-            className="glass-panel px-12 py-6 rounded-2xl border border-neon-blue/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            className="glass-panel px-12 py-6 rounded-2xl border border-neon-blue/40 shadow-[0_0_30px_rgba(0,243,255,0.15)]"
           >
-            <p className="text-neon-blue font-mono text-xl uppercase tracking-widest mb-1">Your Team</p>
-            <p className="text-white font-black text-4xl md:text-5xl uppercase font-mono">{myTeam}</p>
+            <p className="text-neon-blue font-mono text-sm uppercase tracking-widest mb-2">Your Team</p>
+            <p className="text-white font-black text-4xl md:text-5xl uppercase font-mono tracking-widest">{myTeam}</p>
           </motion.div>
 
-          <motion.div
+          <motion.p
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 0] }}
-            transition={{ delay: 2, duration: 2, repeat: Infinity }}
-            className="mt-16 text-white/30 font-mono uppercase tracking-widest text-sm"
+            animate={{ opacity: [0, 0.6, 0] }}
+            transition={{ delay: 2.5, duration: 2.5, repeat: Infinity }}
+            className="mt-14 text-white/30 font-mono uppercase tracking-[0.2em] text-xs"
           >
-            Check the leaderboard for the final standings!
-          </motion.div>
+            ▸ Check the leaderboard for final standings ◂
+          </motion.p>
         </div>
       </div>
     );
