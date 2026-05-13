@@ -9,6 +9,7 @@ export default function AdminDashboard() {
   const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10, points: "10, 7, 5, 3" }, { id: 2, capacity: 7, points: "10, 7, 5, 3" }, { id: 3, capacity: 5, points: "10, 7, 5, 3" }]);
   const [tieBreakerPoints, setTieBreakerPoints] = useState("8, 6");
   const [queueLimit, setQueueLimit] = useState(4);
+  const [autoOpenAnswer, setAutoOpenAnswer] = useState(true);
   const [questions, setQuestions] = useState([]);
   const [teams, setTeams] = useState([]);
 
@@ -44,6 +45,7 @@ export default function AdminDashboard() {
         if (s.data().roundsConfig) setRoundsConfig(s.data().roundsConfig);
         if (s.data().tieBreakerPoints) setTieBreakerPoints(s.data().tieBreakerPoints);
         if (s.data().queueLimit != null) setQueueLimit(s.data().queueLimit);
+        if (s.data().autoOpenAnswer != null) setAutoOpenAnswer(s.data().autoOpenAnswer);
       }
     });
 
@@ -123,7 +125,7 @@ export default function AdminDashboard() {
 
   const saveSettings = async () => {
     setIsLoading(true);
-    await setDoc(doc(db, "game_state", "settings"), { roundsConfig, tieBreakerPoints, queueLimit }, { merge: true });
+    await setDoc(doc(db, "game_state", "settings"), { roundsConfig, tieBreakerPoints, queueLimit, autoOpenAnswer }, { merge: true });
     showAlert("Settings Saved!");
     setIsLoading(false);
   };
@@ -221,12 +223,16 @@ export default function AdminDashboard() {
         await updateDoc(docRef, { timerValue: timeLeft });
       } else {
         clearInterval(timerInterval);
-        // After 10s, lock the buzzer and wait for admin to verify & confirm
         const snap = await getDoc(docRef);
         const data = snap.data();
         if (data?.queue && data.queue.length > 0) {
-          // Teams pressed — go to queue_processing so admin can verify
-          await updateDoc(docRef, { status: "queue_processing", timerValue: 0 });
+          if (autoOpenAnswer) {
+            // Auto mode: sort & open answer panel immediately
+            forceAnswering();
+          } else {
+            // Manual mode: wait for admin to verify via Queue Verify tab
+            await updateDoc(docRef, { status: "queue_processing", timerValue: 0 });
+          }
         } else {
           // Nobody pressed — reset to waiting
           await updateDoc(docRef, { status: "waiting", timerValue: 0 });
@@ -1454,6 +1460,30 @@ export default function AdminDashboard() {
                     className="bg-dark-bg border border-red-500/50 p-2 rounded-lg text-white outline-none focus:border-red-500 w-48 font-mono"
                   />
                   <span className="text-xs text-white/30 font-mono">Only top tied teams get a chance to score and break the tie.</span>
+                </div>
+              </div>
+
+              {/* Auto-Open Answer Panel Toggle */}
+              <div className="bg-white/5 p-4 rounded-xl border border-neon-green/30 mb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-mono text-lg font-bold text-neon-green mb-1">Auto-Open Answer Panel</h3>
+                    <p className="text-white/30 font-mono text-xs">
+                      {autoOpenAnswer
+                        ? 'ON — Answer panel opens automatically after 10s buzzer timer ends.'
+                        : 'OFF — Admin must verify queue and confirm manually via Queue Verify tab.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setAutoOpenAnswer(v => !v)}
+                    className={`relative w-16 h-8 rounded-full transition-all duration-300 focus:outline-none border-2 ${
+                      autoOpenAnswer ? 'bg-neon-green/30 border-neon-green' : 'bg-white/10 border-white/20'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-6 h-6 rounded-full shadow-lg transition-all duration-300 ${
+                      autoOpenAnswer ? 'left-8 bg-neon-green shadow-[0_0_10px_rgba(0,255,102,0.7)]' : 'left-0.5 bg-white/40'
+                    }`} />
+                  </button>
                 </div>
               </div>
 
