@@ -15,8 +15,13 @@ export default function Leaderboard() {
           t.push({ id: d.id, ...d.data() });
         }
       });
-      // Sort descending (Rank 1 at index 0)
-      setTeams(t.sort((a, b) => b.score - a.score));
+      // Sort: score desc → correct answers desc → buzzer presses desc → wrong answers desc
+      setTeams(t.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if ((b.correctAnswers||0) !== (a.correctAnswers||0)) return (b.correctAnswers||0) - (a.correctAnswers||0);
+        if ((b.buzzerPresses||0) !== (a.buzzerPresses||0)) return (b.buzzerPresses||0) - (a.buzzerPresses||0);
+        return (b.wrongAnswers||0) - (a.wrongAnswers||0);
+      }));
     });
     return () => unSubTeams();
   }, []);

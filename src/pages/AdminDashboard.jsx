@@ -58,7 +58,12 @@ export default function AdminDashboard() {
     const unSubTeams = onSnapshot(collection(db, "teams"), (s) => {
       const t = [];
       s.forEach(d => t.push({ id: d.id, ...d.data() }));
-      setTeams(t.sort((a, b) => b.score - a.score));
+      setTeams(t.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;               // 1. Higher score first
+        if ((b.correctAnswers||0) !== (a.correctAnswers||0)) return (b.correctAnswers||0) - (a.correctAnswers||0); // 2. More correct first
+        if ((b.buzzerPresses||0) !== (a.buzzerPresses||0)) return (b.buzzerPresses||0) - (a.buzzerPresses||0); // 3. More active first
+        return (b.wrongAnswers||0) - (a.wrongAnswers||0);               // 4. More attempts first
+      }));
     });
 
     const unSubEvents = onSnapshot(
