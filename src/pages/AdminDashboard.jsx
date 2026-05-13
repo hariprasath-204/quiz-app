@@ -7,6 +7,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('live');
   const [gameState, setGameState] = useState(null);
   const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10, points: "10, 7, 5, 3" }, { id: 2, capacity: 7, points: "10, 7, 5, 3" }, { id: 3, capacity: 5, points: "10, 7, 5, 3" }]);
+  const [tieBreakerPoints, setTieBreakerPoints] = useState("8, 6");
   const [questions, setQuestions] = useState([]);
   const [teams, setTeams] = useState([]);
   
@@ -37,8 +38,9 @@ export default function AdminDashboard() {
     
     const settingsRef = doc(db, "game_state", "settings");
     const unSubSettings = onSnapshot(settingsRef, (s) => {
-      if (s.exists() && s.data().roundsConfig) {
-        setRoundsConfig(s.data().roundsConfig);
+      if (s.exists()) {
+        if (s.data().roundsConfig) setRoundsConfig(s.data().roundsConfig);
+        if (s.data().tieBreakerPoints) setTieBreakerPoints(s.data().tieBreakerPoints);
       }
     });
     
@@ -85,9 +87,10 @@ export default function AdminDashboard() {
     }
   }, [gameState?.status]);
 
-  const saveSettings = async (newConfig) => {
+  const saveSettings = async () => {
     setIsLoading(true);
-    await setDoc(doc(db, "game_state", "settings"), { roundsConfig: newConfig }, { merge: true });
+    await setDoc(doc(db, "game_state", "settings"), { roundsConfig, tieBreakerPoints }, { merge: true });
+    showAlert("Settings Saved!");
     setIsLoading(false);
   };
 
@@ -109,7 +112,7 @@ export default function AdminDashboard() {
         text: qText,
         options,
         correct: parseInt(correctIdx),
-        round: parseInt(roundSelect)
+        round: roundSelect
       });
       showAlert("Question Updated!");
       setEditingId(null);
@@ -118,7 +121,7 @@ export default function AdminDashboard() {
         text: qText,
         options,
         correct: parseInt(correctIdx),
-        round: parseInt(roundSelect),
+        round: roundSelect,
         pushed: false
       });
       showAlert("Question Saved to Bank!");
@@ -141,8 +144,13 @@ export default function AdminDashboard() {
 
   const pushQuestion = async (q) => {
     setIsLoading(true);
-    const roundConfig = roundsConfig.find(r => r.id === (q.round || 1));
-    const roundPoints = roundConfig?.points ? roundConfig.points.split(',').map(p => parseInt(p.trim())) : [10, 7, 5, 3];
+    let roundPoints;
+    if (q.round === 'tie_breaker') {
+      roundPoints = tieBreakerPoints ? tieBreakerPoints.split(',').map(p => parseInt(p.trim())) : [8, 6];
+    } else {
+      const roundConfig = roundsConfig.find(r => r.id.toString() === (q.round || "1").toString());
+      roundPoints = roundConfig?.points ? roundConfig.points.split(',').map(p => parseInt(p.trim())) : [10, 7, 5, 3];
+    }
     
     const docRef = doc(db, "game_state", "current");
     await setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0, currentPoints: roundPoints, attempts: 0 }, { merge: true });
@@ -246,6 +254,17 @@ export default function AdminDashboard() {
       await updateDoc(docRef, { status: "round_transition", transitionType: type, roundNumber: num });
       setIsLoading(false);
     });
+  };
+
+  const toggleTieBreakerMode = async (isActive, tiedTeamNames = []) => {
+    setIsLoading(true);
+    const docRef = doc(db, "game_state", "current");
+    await updateDoc(docRef, { 
+      tieBreakerActive: isActive, 
+      tieBreakerTeams: tiedTeamNames 
+    });
+    showAlert(isActive ? "Tie Breaker Mode ENABLED. All other teams are locked out." : "Tie Breaker Mode DISABLED. Normal gameplay resumed.");
+    setIsLoading(false);
   };
 
   const addTeam = async () => {
@@ -392,6 +411,12 @@ export default function AdminDashboard() {
           ❌ Eliminations
         </button>
         <button 
+          onClick={() => setActiveTab('tie_breaker')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'tie_breaker' ? 'text-orange-500 bg-orange-500/10 border-r-4 border-orange-500' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          ⚖️ Tie Breaker
+        </button>
+        <button 
           onClick={() => setActiveTab('winner')} 
           className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'winner' ? 'text-yellow-400 bg-yellow-400/10 border-r-4 border-yellow-400' : 'text-white/60 hover:bg-white/5'}`}
         >
@@ -496,14 +521,16 @@ export default function AdminDashboard() {
                 <option value="2">Correct: Option C</option>
                 <option value="3">Correct: Option D</option>
               </select>
-              <select 
-                value={roundSelect} onChange={e => setRoundSelect(e.target.value)}
-                className="w-full bg-dark-bg/50 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-neon-purple font-mono"
-              >
-                {roundsConfig.map(r => (
-                  <option key={r.id} value={r.id}>Round {r.id} ({r.capacity} Questions)</option>
-                ))}
-              </select>
+                <select 
+                  value={roundSelect} 
+                  onChange={(e) => setRoundSelect(e.target.value)}
+                  className="bg-dark-bg/50 border border-white/20 p-4 rounded-xl text-white outline-none focus:border-neon-purple w-full font-mono text-lg"
+                >
+                  {roundsConfig.map(r => (
+                    <option key={r.id} value={r.id.toString()}>Round {r.id}</option>
+                  ))}
+                  <option value="tie_breaker">Tie Breaker</option>
+                </select>
               <div className="flex gap-4">
                 <motion.button 
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
@@ -534,7 +561,9 @@ export default function AdminDashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-3">
                       <span className="font-bold text-xl">{q.text}</span>
-                      <span className="text-xs bg-white/10 px-2 py-1 rounded text-white/50 font-mono">Round {q.round || 1}</span>
+                      <span className={`text-xs px-2 py-1 rounded font-mono ${q.round === 'tie_breaker' ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-white/50'}`}>
+                        {q.round === 'tie_breaker' ? 'TIE BREAKER' : `Round ${q.round || 1}`}
+                      </span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {q.options?.map((opt, i) => (
@@ -621,6 +650,56 @@ export default function AdminDashboard() {
                 </div>
               );
             })}
+
+            {/* TIE BREAKER QUESTIONS SECTION */}
+            <div className="mb-10 mt-16 border-t-2 border-red-500/30 pt-10">
+              <h3 className="text-2xl font-black mb-4 border-b border-red-500/50 pb-2 font-mono flex justify-between items-center text-red-500">
+                <span>⚖️ Tie Breaker Round</span>
+                <div className="flex gap-4 items-center">
+                  <span className="text-sm text-red-500/50 ml-4 font-normal">{questions.filter(q => q.round === 'tie_breaker').length} Questions Available</span>
+                </div>
+              </h3>
+              <p className="text-red-400/60 font-mono mb-6 text-sm">These questions are reserved for Tie Breaker mode. Only use them when Tie Breaker Mode is active.</p>
+              <div className="space-y-3">
+                {questions.filter(q => q.round === 'tie_breaker').map((q) => (
+                  <div key={q.id} className={`glass-panel p-6 rounded-xl flex flex-col md:flex-row md:justify-between md:items-center gap-6 transition-all ${q.pushed ? 'opacity-80' : 'border-l-4 border-red-500'}`}>
+                    <div className="flex-1">
+                      <span className="font-bold text-xl block mb-3 text-red-100">{q.text}</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {q.options?.map((opt, i) => (
+                          <div key={i} className={`text-sm p-2 rounded-lg font-mono ${q.correct === i ? 'bg-red-500/20 border border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-dark-bg/50 border border-white/10 text-white/50'}`}>
+                            {['A', 'B', 'C', 'D'][i]}. {opt}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {q.pushed ? (
+                      <div className="flex gap-4 items-center">
+                        <span className="bg-white/5 text-white/30 px-6 py-3 rounded-lg font-mono text-sm font-bold border border-white/10 uppercase tracking-widest cursor-not-allowed">LOCKED</span>
+                        <button 
+                          onClick={() => unlockQuestion(q.id)} 
+                          className="text-red-500 text-xs border border-red-500 px-3 py-2 rounded-lg hover:bg-red-500/20 transition-colors uppercase font-mono font-bold"
+                        >
+                          Unlock
+                        </button>
+                      </div>
+                    ) : (
+                      <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => pushQuestion(q)} 
+                        className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.3)] cursor-pointer font-mono text-sm font-bold px-6 py-3 rounded-lg transition-all uppercase"
+                      >
+                        PUSH LIVE
+                      </motion.button>
+                    )}
+                  </div>
+                ))}
+                {questions.filter(q => q.round === 'tie_breaker').length === 0 && (
+                  <p className="text-white/30 font-mono italic p-4">No tie breaker questions added yet.</p>
+                )}
+              </div>
+            </div>
           </section>
         )}
 
@@ -792,6 +871,94 @@ export default function AdminDashboard() {
           </section>
         )}
 
+        {/* TIE BREAKER TAB */}
+        {activeTab === 'tie_breaker' && (() => {
+          const activeTeams = teams.filter(t => !t.eliminated);
+          
+          // Sort teams: lowest score first, then lowest buzzer presses first
+          const sortedForElim = [...activeTeams].sort((a, b) => {
+            if (a.score !== b.score) return a.score - b.score;
+            return (a.buzzerPresses || 0) - (b.buzzerPresses || 0);
+          });
+          
+          const lowestTeam = sortedForElim[0];
+          
+          // Find all teams tied with the lowest team
+          const tiedTeams = lowestTeam ? sortedForElim.filter(t => 
+            t.score === lowestTeam.score && (t.buzzerPresses || 0) === (lowestTeam.buzzerPresses || 0)
+          ) : [];
+          
+          const isTied = tiedTeams.length > 1;
+
+          return (
+            <section className="animate-in fade-in zoom-in-95 duration-300">
+              <h2 className="text-3xl font-bold font-mono text-orange-500 mb-6">Sudden Death Tie Breaker</h2>
+              
+              <div className="glass-panel p-8 rounded-2xl mb-8 border border-white/10 relative overflow-hidden">
+                <div className={`absolute top-0 left-0 w-2 h-full ${gameState?.tieBreakerActive ? 'bg-red-500 animate-pulse' : 'bg-white/10'}`}></div>
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                  <div>
+                    <h3 className="text-2xl font-black font-mono mb-2 uppercase tracking-widest text-white">System Status</h3>
+                    {gameState?.tieBreakerActive ? (
+                      <p className="text-red-500 font-mono font-bold animate-pulse">TIE BREAKER MODE IS CURRENTLY ACTIVE.</p>
+                    ) : (
+                      <p className="text-white/50 font-mono">Normal gameplay rules are currently active.</p>
+                    )}
+                  </div>
+                  <div>
+                    {gameState?.tieBreakerActive ? (
+                      <button 
+                        onClick={() => toggleTieBreakerMode(false)}
+                        className="bg-white/10 hover:bg-white/20 text-white font-mono font-bold px-8 py-4 rounded-xl uppercase tracking-widest transition-all border border-white/20"
+                      >
+                        END TIE BREAKER MODE
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => toggleTieBreakerMode(true, tiedTeams.map(t => t.name))}
+                        disabled={!isTied}
+                        className={`font-mono font-bold px-8 py-4 rounded-xl uppercase tracking-widest transition-all border ${isTied ? 'bg-red-500/20 text-red-500 border-red-500 hover:bg-red-500/30 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]' : 'bg-dark-bg border-white/10 text-white/30 cursor-not-allowed'}`}
+                      >
+                        START TIE BREAKER MODE
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {isTied ? (
+                <div className="bg-red-500/10 border border-red-500/30 p-8 rounded-2xl">
+                  <h3 className="text-xl font-bold font-mono text-red-500 mb-6 uppercase tracking-widest">
+                    ⚠️ Tie Detected at the Bottom!
+                  </h3>
+                  <p className="text-white/60 font-mono mb-6">
+                    {tiedTeams.length} teams are tied for last place with exactly <strong>{lowestTeam.score} Points</strong> and <strong>{lowestTeam.buzzerPresses || 0} Buzzer Presses</strong>.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    {tiedTeams.map(t => (
+                      <div key={t.id} className="bg-dark-bg p-4 rounded-xl border border-red-500/50 text-center shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                        <span className="font-bold text-xl block text-white">{t.name}</span>
+                        <span className="text-red-500 font-mono text-sm uppercase">At Risk</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="bg-dark-bg p-6 rounded-xl border-l-4 border-orange-500">
+                    <p className="font-mono text-orange-400">
+                      <strong>Recommended Action:</strong> Start Tie Breaker Mode. Push {tiedTeams.length - 1} Tie Breaker question(s) from the Push Live tab. All other teams will be locked out of their buzzers.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white/5 border border-white/10 p-12 rounded-2xl text-center">
+                  <h3 className="text-xl font-bold font-mono text-white/50 uppercase tracking-widest mb-4">No Ties Detected</h3>
+                  <p className="text-white/30 font-mono">The lowest scoring team is clearly identifiable. No Tie Breaker is needed.</p>
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
@@ -850,6 +1017,21 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+
+              <div className="bg-white/5 p-4 rounded-xl border border-red-500/30 mb-8">
+                <h3 className="font-mono text-lg font-bold text-red-500 mb-4">Tie Breaker Configuration</h3>
+                <div className="flex items-center gap-4">
+                  <label className="text-white/40 font-mono text-sm w-36">Points Distribution:</label>
+                  <input 
+                    type="text" 
+                    value={tieBreakerPoints} 
+                    onChange={(e) => setTieBreakerPoints(e.target.value)}
+                    placeholder="8, 6"
+                    className="bg-dark-bg border border-red-500/50 p-2 rounded-lg text-white outline-none focus:border-red-500 w-48 font-mono"
+                  />
+                  <span className="text-xs text-white/30 font-mono">Only top tied teams get a chance to score and break the tie.</span>
+                </div>
+              </div>
               
               <div className="flex gap-4">
                 <button 
@@ -862,7 +1044,7 @@ export default function AdminDashboard() {
                   + Add Round
                 </button>
                 <button 
-                  onClick={() => saveSettings(roundsConfig)}
+                  onClick={saveSettings}
                   className="bg-neon-blue/20 text-neon-blue border border-neon-blue font-bold font-mono px-6 py-3 rounded-xl hover:bg-neon-blue/30 transition-all shadow-[0_0_15px_rgba(0,243,255,0.3)]"
                 >
                   Save Configuration

@@ -82,6 +82,18 @@ export default function ClientPortal() {
     playBuzzSound();
     const docRef = doc(db, "game_state", "current");
     await updateDoc(docRef, { queue: arrayUnion(myTeam) });
+
+    try {
+      const q = query(collection(db, "teams"));
+      const snap = await getDocs(q);
+      snap.forEach(async (d) => {
+        if (d.data().name === myTeam) {
+          await updateDoc(doc(db, "teams", d.id), { buzzerPresses: (d.data().buzzerPresses || 0) + 1 });
+        }
+      });
+    } catch (err) {
+      console.error("Failed to update buzzer metrics", err);
+    }
   };
 
   const handleAns = async (idx, correctIdx, currentQueue) => {
@@ -178,6 +190,8 @@ export default function ClientPortal() {
 
   if (!gameState) return <div className="min-h-screen flex items-center justify-center font-mono text-neon-blue">Connecting...</div>;
 
+  const isLockedByTieBreaker = gameState.tieBreakerActive && !gameState.tieBreakerTeams?.includes(myTeam);
+
   const { status, timerValue, queue, activeQ } = gameState;
 
   return (
@@ -252,13 +266,13 @@ export default function ClientPortal() {
           >
             <button 
               onClick={sendBuzz}
-              disabled={status !== "buzzer_open" || (queue && queue.includes(myTeam))}
+              disabled={status !== "buzzer_open" || (queue && queue.includes(myTeam)) || isLockedByTieBreaker}
               className={`w-72 h-72 rounded-full flex items-center justify-center text-5xl font-black font-mono transition-all active:scale-90 border-4 
-                ${status === "buzzer_open" && (!queue || !queue.includes(myTeam)) 
+                ${status === "buzzer_open" && (!queue || !queue.includes(myTeam)) && !isLockedByTieBreaker
                   ? 'buzzer-active border-transparent text-white' 
                   : 'bg-dark-surface border-dark-border text-white/30 cursor-not-allowed'}`}
             >
-              {status === "buzzer_open" ? "BUZZ" : "LOCKED"}
+              {isLockedByTieBreaker ? "TIE BREAKER" : (status === "buzzer_open" ? "BUZZ" : "LOCKED")}
             </button>
             
             <div className="mt-16 flex flex-col items-center">
@@ -266,9 +280,11 @@ export default function ClientPortal() {
                 00:{status === "buzzer_open" ? (timerValue < 10 ? `0${timerValue}` : timerValue) : "00"}
               </span>
               <p className="mt-6 text-xl font-mono uppercase tracking-widest text-white/50">
-                {status === "buzzer_open" 
-                  ? (!queue || !queue.includes(myTeam) ? "Ready... Buzz Now!" : "Buzzed! Wait for timer...") 
-                  : "Locked by Admin"}
+                {isLockedByTieBreaker ? "LOCKED: TIE BREAKER IN PROGRESS" : (
+                  status === "buzzer_open" 
+                    ? (!queue || !queue.includes(myTeam) ? "Ready... Buzz Now!" : "Buzzed! Wait for timer...") 
+                    : "Locked by Admin"
+                )}
               </p>
             </div>
           </motion.div>
