@@ -9,6 +9,8 @@ export default function ClientPortal() {
   const [isJoined, setIsJoined] = useState(false);
   const [gameState, setGameState] = useState(null);
   const [popup, setPopup] = useState(null);
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   useEffect(() => {
     signInAnonymously(auth).catch(err => console.error("Auth:", err));
@@ -20,11 +22,35 @@ export default function ClientPortal() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (myTeam.trim()) {
-      setIsJoined(true);
+    const teamName = myTeam.trim();
+    if (!teamName) return;
+    
+    setIsLoggingIn(true);
+    setLoginError('');
+    
+    try {
+      const q = query(collection(db, "teams"));
+      const snap = await getDocs(q);
+      let found = false;
+      snap.forEach(d => {
+        if (d.data().name.toLowerCase() === teamName.toLowerCase()) {
+          found = true;
+        }
+      });
+      
+      if (found) {
+        setIsJoined(true);
+      } else {
+        setLoginError('Participant not allowed. Please enter a valid team name.');
+      }
+    } catch (err) {
+      console.error("Login error", err);
+      setLoginError('Connection error. Please try again.');
     }
+    
+    setIsLoggingIn(false);
   };
 
   const playBuzzSound = () => {
@@ -117,18 +143,32 @@ export default function ClientPortal() {
               <input 
                 type="text" 
                 value={myTeam}
-                onChange={(e) => setMyTeam(e.target.value)}
+                onChange={(e) => { setMyTeam(e.target.value); setLoginError(''); }}
                 placeholder="# 00" 
                 className="w-full p-4 rounded-xl bg-dark-bg/80 border border-white/10 text-white font-mono outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue transition-all text-xl"
                 required
               />
             </div>
             
+            <AnimatePresence>
+              {loginError && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }} 
+                  animate={{ opacity: 1, height: 'auto' }} 
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-red-500 font-mono text-sm text-center bg-red-500/10 p-2 rounded border border-red-500/30"
+                >
+                  {loginError}
+                </motion.p>
+              )}
+            </AnimatePresence>
+            
             <button 
               type="submit" 
-              className="w-full bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue border border-neon-blue font-mono font-bold py-4 rounded-xl active:scale-95 transition-all text-lg tracking-widest uppercase hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]"
+              disabled={isLoggingIn}
+              className={`w-full font-mono font-bold py-4 rounded-xl active:scale-95 transition-all text-lg tracking-widest uppercase ${isLoggingIn ? 'bg-white/5 text-white/30 border border-white/10' : 'bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue border border-neon-blue hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]'}`}
             >
-              Initiate_Session
+              {isLoggingIn ? 'AUTHENTICATING...' : 'INITIATE_SESSION'}
             </button>
           </form>
         </motion.div>
