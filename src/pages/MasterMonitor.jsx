@@ -121,7 +121,7 @@ export default function MasterMonitor() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg p-4 flex flex-col gap-3">
+    <div className="h-screen bg-dark-bg p-4 flex flex-col gap-3 overflow-y-auto">
       {/* Header */}
       <div className="flex justify-between items-center flex-shrink-0">
         <h1 className="text-2xl font-black font-mono uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
