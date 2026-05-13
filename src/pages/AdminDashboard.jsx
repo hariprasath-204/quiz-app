@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, increment } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboard() {
@@ -9,6 +9,7 @@ export default function AdminDashboard() {
   const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10 }, { id: 2, capacity: 7 }, { id: 3, capacity: 5 }]);
   const [questions, setQuestions] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [roundWinners, setRoundWinners] = useState({});
   
   // Forms
   const [newTeam, setNewTeam] = useState('');
@@ -53,12 +54,17 @@ export default function AdminDashboard() {
       s.forEach(d => t.push({ id: d.id, ...d.data() }));
       setTeams(t.sort((a,b) => b.score - a.score));
     });
+    
+    const unSubRoundWinners = onSnapshot(doc(db, "game_state", "round_winners"), (s) => {
+      if (s.exists()) setRoundWinners(s.data());
+    });
 
     return () => {
       unSubState();
       unSubSettings();
       unSubQ();
       unSubTeams();
+      unSubRoundWinners();
     };
   }, []);
 
@@ -303,6 +309,27 @@ export default function AdminDashboard() {
     });
   };
 
+  const setRoundWinner = async (roundId, teamId) => {
+    const roundKey = roundId.toString();
+    const prevWinnerId = roundWinners[roundKey];
+    if (prevWinnerId === teamId) return;
+
+    setIsLoading(true);
+    try {
+      if (prevWinnerId) {
+        await updateDoc(doc(db, "teams", prevWinnerId), { score: increment(-1) });
+      }
+      if (teamId) {
+        await updateDoc(doc(db, "teams", teamId), { score: increment(1) });
+      }
+      await setDoc(doc(db, "game_state", "round_winners"), { [roundKey]: teamId }, { merge: true });
+    } catch (err) {
+      console.error(err);
+      showAlert("Failed to assign round point.");
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-dark-bg font-sans relative">
       {/* CUSTOM MODAL */}
@@ -381,6 +408,12 @@ export default function AdminDashboard() {
           className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'teams' ? 'text-neon-pink bg-neon-pink/10 border-r-4 border-neon-pink' : 'text-white/60 hover:bg-white/5'}`}
         >
           👥 Teams
+        </button>
+        <button 
+          onClick={() => setActiveTab('points')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'points' ? 'text-orange-400 bg-orange-400/10 border-r-4 border-orange-400' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          🎖️ Round Points
         </button>
         <button 
           onClick={() => setActiveTab('eliminations')} 
@@ -785,6 +818,50 @@ export default function AdminDashboard() {
               >
                 Reveal Grand Champions
               </motion.button>
+            </div>
+          </section>
+        )}
+
+        {/* POINTS TAB */}
+        {activeTab === 'points' && (
+          <section className="animate-in fade-in zoom-in-95 duration-300">
+            <h2 className="text-3xl font-bold font-mono text-orange-400 mb-6">Round Winners & Points</h2>
+            <p className="text-white/50 mb-8 font-mono">Assign 1 point to a team for winning a specific round. Changing the team will dynamically adjust the scores.</p>
+            
+            <div className="space-y-4">
+              {roundsConfig.map(round => {
+                const roundId = round.id;
+                const roundKey = roundId.toString();
+                const currentWinnerId = roundWinners[roundKey] || '';
+                
+                return (
+                  <div key={roundId} className="glass-panel p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-orange-400/50 hover:bg-orange-400/5 transition-all">
+                    <div>
+                      <h3 className="text-xl font-bold font-mono text-white mb-2">Round {roundId}</h3>
+                      <p className="text-sm font-mono text-white/50">{round.capacity} Questions Capacity</p>
+                    </div>
+                    
+                    <div className="flex gap-4 items-center">
+                      <select 
+                        value={currentWinnerId}
+                        onChange={(e) => setRoundWinner(roundId, e.target.value)}
+                        className="bg-dark-bg/50 border border-orange-400/30 p-3 rounded-xl text-orange-400 outline-none focus:border-orange-400 font-mono w-64 font-bold"
+                      >
+                        <option value="">-- No Winner Assigned --</option>
+                        {teams.map(t => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.score} pts)</option>
+                        ))}
+                      </select>
+                      
+                      {currentWinnerId && (
+                        <div className="bg-orange-400/20 text-orange-400 px-4 py-2 rounded-lg font-mono font-bold text-sm border border-orange-400/50 shadow-[0_0_10px_rgba(251,146,60,0.2)]">
+                          +1 POINT AWARDED
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
