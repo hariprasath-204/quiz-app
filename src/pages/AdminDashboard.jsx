@@ -964,7 +964,7 @@ export default function AdminDashboard() {
             {roundsConfig.map((round) => {
               const roundNum = round.id;
               const capacity = round.capacity;
-              const roundQuestions = questions.filter(q => q.round === roundNum || (!q.round && roundNum === 1));
+              const roundQuestions = questions.filter(q => q.round?.toString() === roundNum.toString() || (!q.round && roundNum === 1));
 
               return (
                 <div key={roundNum} className="mb-10">
