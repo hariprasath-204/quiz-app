@@ -128,6 +128,7 @@ export default function MasterMonitor() {
         <h1 className="text-2xl font-black font-mono uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
           📺 Master Monitor
         </h1>
+        <div className="flex gap-3">
           <button
               onClick={() => setStealthMode(v => !v)}
               title="Stealth Mode: hides video feeds so entire-screen sharing doesn't mirror"
