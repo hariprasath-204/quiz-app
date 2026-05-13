@@ -631,39 +631,76 @@ export default function AdminDashboard() {
             </div>
 
             <div className="glass-panel p-8 rounded-2xl">
-              <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2 font-mono">Buzzer Queue (First 4 Teams)</h3>
-              <div className="space-y-3">
-                {gameState?.queue?.slice(0, 4).map((team, i) => {
-                  const ms = gameState?.queueTimes?.[team];
-                  const colors = ['border-neon-blue','border-neon-purple','border-neon-pink','border-orange-500'];
-                  return (
-                    <div key={i} className={`flex items-center justify-between bg-white/5 p-4 rounded-xl border-l-4 ${colors[i]}`}>
-                      <div>
-                        <span className="font-bold text-lg font-mono">#{i+1} {team}</span>
-                      </div>
-                      <div className="flex items-center gap-6 text-right">
-                        {ms != null ? (
-                          <div className="flex flex-col items-end">
-                            <span className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Response Time</span>
-                            <span className={`font-black font-mono text-lg ${ms < 1000 ? 'text-neon-green' : ms < 3000 ? 'text-yellow-400' : 'text-orange-400'}`}>
-                              {ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(2)}s`}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-white/20 font-mono text-sm">Pre-open</span>
-                        )}
-                        <span className="text-xs text-neon-green uppercase font-black font-mono">Ready</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                {(!gameState?.queue || gameState.queue.length === 0) && (
-                  <p className="text-white/30 font-mono italic">Queue is empty</p>
-                )}
+              <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-3">
+                <h3 className="text-xl font-bold font-mono">⚡ Buzzer Queue</h3>
+                <span className="text-white/30 font-mono text-xs uppercase tracking-widest">
+                  {gameState?.queue?.length || 0} Teams Pressed · Sorted Fastest → Slowest
+                </span>
+              </div>
+              <div className="space-y-2">
+                {(() => {
+                  const queue = gameState?.queue || [];
+                  const times = gameState?.queueTimes || {};
+                  // Sort: teams with times fastest first, then teams without times at end
+                  const sorted = [...queue].sort((a, b) => {
+                    const ta = times[a] != null ? times[a] : Infinity;
+                    const tb = times[b] != null ? times[b] : Infinity;
+                    return ta - tb;
+                  });
+                  const medals = ['🥇', '🥈', '🥉'];
+                  const fastest = times[sorted[0]];
+
+                  return sorted.length === 0 ? (
+                    <p className="text-white/30 font-mono italic">Queue is empty</p>
+                  ) : sorted.map((team, i) => {
+                    const ms = times[team];
+                    const gap = ms != null && fastest != null ? ms - fastest : null;
+                    const borderColors = ['border-yellow-400', 'border-slate-300', 'border-amber-600'];
+                    const border = i < 3 ? borderColors[i] : 'border-white/10';
+                    return (
+                      <motion.div
+                        key={team}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className={`flex items-center justify-between p-4 rounded-xl border-l-4 ${border} ${i === 0 ? 'bg-yellow-400/5' : 'bg-white/5'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-xl w-8 text-center">{medals[i] || `#${i + 1}`}</span>
+                          <span className="font-bold text-lg font-mono">{team}</span>
+                        </div>
+                        <div className="flex items-center gap-6 text-right">
+                          {ms != null ? (
+                            <>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[10px] text-white/30 font-mono uppercase tracking-widest mb-0.5">Response</span>
+                                <span className={`font-black font-mono text-lg ${ms < 1000 ? 'text-neon-green' : ms < 3000 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                                  {ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(3)}s`}
+                                </span>
+                              </div>
+                              {i > 0 && gap != null && (
+                                <div className="flex flex-col items-end">
+                                  <span className="text-[10px] text-white/30 font-mono uppercase tracking-widest mb-0.5">Gap</span>
+                                  <span className="font-mono text-white/40 text-sm">
+                                    +{gap < 1000 ? `${gap}ms` : `${(gap / 1000).toFixed(3)}s`}
+                                  </span>
+                                </div>
+                              )}
+                              {i === 0 && <span className="text-neon-green font-black font-mono text-xs uppercase tracking-widest">🏁 Fastest</span>}
+                            </>
+                          ) : (
+                            <span className="text-white/20 font-mono text-sm italic">No time</span>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </section>
         )}
+
 
         {/* QUESTIONS TAB */}
         {activeTab === 'questions' && (
