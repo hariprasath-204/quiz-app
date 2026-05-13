@@ -248,7 +248,7 @@ export default function MasterMonitor() {
                 {/* In stealth mode hide video to prevent mirror loop */}
                 <video ref={el => { if (el) videoRefs.current[team.name] = el; }}
                   autoPlay muted playsInline
-                  className={`w-full h-full object-cover ${
+                  className={`w-full h-full object-contain bg-black ${
                     hasStream && !stealthMode ? 'block' : 'hidden'
                   }`} />
 
