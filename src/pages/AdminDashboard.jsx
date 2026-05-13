@@ -573,14 +573,6 @@ export default function AdminDashboard() {
         >
           📊 Buzzer Analytics
         </button>
-        <button
-          onClick={() => window.open('/master', '_blank')}
-          className="p-3 text-left font-mono rounded-lg transition-all text-white/60 hover:bg-white/5 flex items-center gap-2"
-        >
-          <span>📺 Master Monitor</span>
-          <span className="text-[9px] text-white/20 ml-auto font-mono border border-white/10 px-1 rounded">↗</span>
-        </button>
-
         <div className="mt-8 pt-8 border-t border-white/10">
           <button
             onClick={() => setActiveTab('reset')}

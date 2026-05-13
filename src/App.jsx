@@ -5,7 +5,6 @@ import AdminDashboard from './pages/AdminDashboard';
 import Leaderboard from './pages/Leaderboard';
 import Elimination from './pages/Elimination';
 import Winner from './pages/Winner';
-import MasterMonitor from './pages/MasterMonitor';
 import Background from './components/Background';
 
 function App() {
@@ -20,7 +19,6 @@ function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/elimination" element={<Elimination />} />
           <Route path="/winner" element={<Winner />} />
-          <Route path="/master" element={<MasterMonitor />} />
         </Routes>
       </div>
     </Router>
