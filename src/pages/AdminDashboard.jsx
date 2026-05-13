@@ -170,6 +170,8 @@ export default function AdminDashboard() {
 
     setQText('');
     setOptions(['', '', '', '']);
+    setCorrectIdx(0);
+    setRoundSelect('1');
     setIsLoading(false);
   };
 
@@ -179,8 +181,8 @@ export default function AdminDashboard() {
     setCorrectIdx(q.correct !== undefined ? q.correct.toString() : '0');
     setRoundSelect(q.round ? q.round.toString() : '1');
     setEditingId(q.id);
-    // Scroll to top smoothly
-    document.querySelector('.h-screen').scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll the main content pane to the top so the edit form is visible
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const pushQuestion = async (q) => {
