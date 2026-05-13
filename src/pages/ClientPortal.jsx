@@ -110,7 +110,10 @@ export default function ClientPortal() {
       const snap = await getDocs(q);
       snap.forEach(async (d) => {
         if (d.data().name === myTeam) {
-          await updateDoc(doc(db, "teams", d.id), { score: d.data().score + pts });
+          await updateDoc(doc(db, "teams", d.id), { 
+            score: d.data().score + pts,
+            correctAnswers: (d.data().correctAnswers || 0) + 1
+          });
         }
       });
       
@@ -121,6 +124,16 @@ export default function ClientPortal() {
       }, 2500);
 
     } else {
+      const q = query(collection(db, "teams"));
+      const snap = await getDocs(q);
+      snap.forEach(async (d) => {
+        if (d.data().name === myTeam) {
+          await updateDoc(doc(db, "teams", d.id), { 
+            wrongAnswers: (d.data().wrongAnswers || 0) + 1
+          });
+        }
+      });
+
       setPopup({ type: 'wrong', msg: 'WRONG! Pass to next team.' });
       setTimeout(async () => {
         setPopup(null);

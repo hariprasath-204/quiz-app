@@ -214,6 +214,21 @@ export default function AdminDashboard() {
       
       if (ansTimeLeft <= 0) {
         clearInterval(ansIntervalRef.current);
+        
+        // Track missed answer for the team that failed to answer
+        const missedTeam = data.queue[0];
+        if (missedTeam) {
+          const q = query(collection(db, "teams"));
+          const tSnap = await getDocs(q);
+          tSnap.forEach(async (d) => {
+            if (d.data().name === missedTeam) {
+              await updateDoc(doc(db, "teams", d.id), { 
+                missedAnswers: (d.data().missedAnswers || 0) + 1 
+              });
+            }
+          });
+        }
+
         // Time is up! 
         const newQueue = data.queue.slice(1);
         if (newQueue.length > 0) {

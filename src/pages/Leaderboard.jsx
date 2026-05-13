@@ -109,17 +109,39 @@ export default function Leaderboard() {
                   initial="hidden"
                   animate="visible"
                   variants={itemVariants}
-                  className={`flex items-center justify-between p-6 rounded-2xl border backdrop-blur-md ${rankStyle} ${shadow}`}
+                  className={`flex flex-col md:flex-row items-center justify-between p-6 rounded-2xl border backdrop-blur-md ${rankStyle} ${shadow}`}
                 >
-                  <div className="flex items-center gap-8">
+                  <div className="flex items-center gap-8 w-full md:w-auto">
                     <div className={`font-mono w-12 text-center ${rankText}`}>
                       #{rank}
                     </div>
-                    <div className="text-2xl md:text-3xl font-bold tracking-wider uppercase font-mono">
+                    <div className="text-2xl md:text-3xl font-bold tracking-wider uppercase font-mono flex-1">
                       {team.name}
                     </div>
                   </div>
-                  {/* Score removed from team display */}
+                  
+                  <div className="flex items-center gap-6 text-sm md:text-base font-mono flex-wrap justify-center md:justify-end mt-6 md:mt-0 w-full md:w-auto">
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest mb-1">Buzzers</span>
+                      <span className="font-bold">{team.buzzerPresses || 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest mb-1">Correct</span>
+                      <span className="font-bold text-neon-green">{team.correctAnswers || 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest mb-1">Wrong</span>
+                      <span className="font-bold text-red-500">{team.wrongAnswers || 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest mb-1">Missed</span>
+                      <span className="font-bold text-orange-400">{team.missedAnswers || 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center ml-2 md:ml-4 pl-4 md:pl-6 border-l border-white/20">
+                      <span className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest mb-1">Score</span>
+                      <span className={`font-black text-xl md:text-2xl ${rank === 1 ? 'text-yellow-400' : 'text-white'}`}>{team.score} PTS</span>
+                    </div>
+                  </div>
                 </motion.div>
               );
             })}
