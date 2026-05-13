@@ -946,7 +946,7 @@ export default function AdminDashboard() {
                   
                   <div className="bg-dark-bg p-6 rounded-xl border-l-4 border-orange-500">
                     <p className="font-mono text-orange-400">
-                      <strong>Recommended Action:</strong> Start Tie Breaker Mode. Push {tiedTeams.length - 1} Tie Breaker question(s) from the Push Live tab. All other teams will be locked out of their buzzers.
+                      <strong>Recommended Action:</strong> Start Tie Breaker Mode. Then, push {tiedTeams.length - 1} Tie Breaker question(s) from below. All other teams will be locked out of their buzzers.
                     </p>
                   </div>
                 </div>
@@ -954,6 +954,75 @@ export default function AdminDashboard() {
                 <div className="bg-white/5 border border-white/10 p-12 rounded-2xl text-center">
                   <h3 className="text-xl font-bold font-mono text-white/50 uppercase tracking-widest mb-4">No Ties Detected</h3>
                   <p className="text-white/30 font-mono">The lowest scoring team is clearly identifiable. No Tie Breaker is needed.</p>
+                </div>
+              )}
+
+              {/* TIE BREAKER CONTROLS & QUESTIONS */}
+              {gameState?.tieBreakerActive && (
+                <div className="mt-12 border-t-2 border-red-500/30 pt-8">
+                  <h3 className="text-2xl font-black mb-4 font-mono text-red-500">Tie Breaker Controls</h3>
+                  
+                  <div className="flex gap-4 mb-8">
+                    <button 
+                      onClick={() => triggerRoundTransition('start', 'TIE BREAKER')} 
+                      className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500 hover:text-white px-6 py-3 rounded-lg font-mono font-bold transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                    >
+                      Trigger Start Cinematic
+                    </button>
+                    <button 
+                      onClick={startSequence} 
+                      disabled={!gameState?.activeQ || gameState?.status !== "waiting"}
+                      className="bg-neon-pink/20 text-neon-pink border border-neon-pink hover:bg-neon-pink/40 px-6 py-3 rounded-lg font-mono font-bold transition-all uppercase tracking-widest disabled:opacity-50"
+                    >
+                      Open Buzzers (Timer)
+                    </button>
+                    <button 
+                      onClick={() => triggerRoundTransition('finish', 'TIE BREAKER')} 
+                      className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500 hover:text-white px-6 py-3 rounded-lg font-mono font-bold transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                    >
+                      Trigger Finish Cinematic
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {questions.filter(q => q.round === 'tie_breaker').map((q) => (
+                      <div key={q.id} className={`glass-panel p-6 rounded-xl flex flex-col md:flex-row md:justify-between md:items-center gap-6 transition-all ${q.pushed ? 'opacity-80' : 'border-l-4 border-red-500'}`}>
+                        <div className="flex-1">
+                          <span className="font-bold text-xl block mb-3 text-red-100">{q.text}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {q.options?.map((opt, i) => (
+                              <div key={i} className={`text-sm p-2 rounded-lg font-mono ${q.correct === i ? 'bg-red-500/20 border border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-dark-bg/50 border border-white/10 text-white/50'}`}>
+                                {['A', 'B', 'C', 'D'][i]}. {opt}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {q.pushed ? (
+                          <div className="flex gap-4 items-center">
+                            <span className="bg-white/5 text-white/30 px-6 py-3 rounded-lg font-mono text-sm font-bold border border-white/10 uppercase tracking-widest cursor-not-allowed">LOCKED</span>
+                            <button 
+                              onClick={() => unlockQuestion(q.id)} 
+                              className="text-red-500 text-xs border border-red-500 px-3 py-2 rounded-lg hover:bg-red-500/20 transition-colors uppercase font-mono font-bold"
+                            >
+                              Unlock
+                            </button>
+                          </div>
+                        ) : (
+                          <motion.button 
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => pushQuestion(q)} 
+                            className="bg-red-500/20 text-red-500 border border-red-500 hover:bg-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.3)] cursor-pointer font-mono text-sm font-bold px-6 py-3 rounded-lg transition-all uppercase"
+                          >
+                            PUSH LIVE
+                          </motion.button>
+                        )}
+                      </div>
+                    ))}
+                    {questions.filter(q => q.round === 'tie_breaker').length === 0 && (
+                      <p className="text-white/30 font-mono italic p-4">No tie breaker questions added yet.</p>
+                    )}
+                  </div>
                 </div>
               )}
             </section>

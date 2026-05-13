@@ -257,8 +257,25 @@ export default function ClientPortal() {
           )}
         </AnimatePresence>
 
+        {/* LOCKED OUT OVERLAY (TIE BREAKER) */}
+        {isLockedByTieBreaker && status !== "round_transition" && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-dark-bg/95 backdrop-blur-xl rounded-3xl border-4 border-red-500/30"
+          >
+            <span className="text-7xl mb-8 animate-pulse">⚖️</span>
+            <h1 className="text-4xl md:text-5xl font-black uppercase text-center leading-tight text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] font-mono">
+              TIE BREAKER IN PROGRESS
+            </h1>
+            <p className="mt-8 text-xl md:text-2xl font-mono text-white/50 tracking-widest uppercase text-center max-w-lg">
+              You are safe. Please wait while the tied teams battle it out to avoid elimination.
+            </p>
+          </motion.div>
+        )}
+
         {/* BUZZER AREA */}
-        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && (
+        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && !isLockedByTieBreaker && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -291,7 +308,7 @@ export default function ClientPortal() {
         )}
 
         {/* ANSWERING AREA */}
-        {(status === "answering" || status === "evaluating") && queue && queue.length > 0 && (
+        {(status === "answering" || status === "evaluating") && queue && queue.length > 0 && !isLockedByTieBreaker && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
