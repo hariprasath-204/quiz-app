@@ -137,7 +137,7 @@ export default function ClientPortal() {
         });
       }
       
-      setPopup({ type: 'correct', msg: `CORRECT! +${pts} Points` });
+      setPopup({ type: 'correct', msg: 'CORRECT!' });
       setTimeout(async () => {
         setPopup(null);
         await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
