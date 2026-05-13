@@ -190,7 +190,8 @@ export default function ClientPortal() {
 
   if (!gameState) return <div className="min-h-screen flex items-center justify-center font-mono text-neon-blue">Connecting...</div>;
 
-  const isLockedByTieBreaker = gameState.tieBreakerActive && !gameState.tieBreakerTeams?.includes(myTeam);
+  const isLockedByTieBreaker = gameState.tieBreakerActive && 
+    !(gameState.tieBreakerTeams?.map(t => t.toLowerCase()).includes(myTeam.toLowerCase()));
 
   const { status, timerValue, queue, activeQ } = gameState;
 
