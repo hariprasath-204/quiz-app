@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, increment } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 
 export default function ClientPortal() {
   const [myTeam, setMyTeam] = useState('');
+  const [teamDocId, setTeamDocId] = useState(null); // cached team doc ID
   const [isJoined, setIsJoined] = useState(false);
   const [gameState, setGameState] = useState(null);
   const [popup, setPopup] = useState(null);
@@ -37,6 +38,8 @@ export default function ClientPortal() {
       snap.forEach(d => {
         if (d.data().name.toLowerCase() === teamName.toLowerCase()) {
           found = true;
+          setTeamDocId(d.id); // cache the doc ID for later use
+          setMyTeam(d.data().name); // normalize the name to match firebase
         }
       });
       
@@ -83,22 +86,18 @@ export default function ClientPortal() {
     const docRef = doc(db, "game_state", "current");
     await updateDoc(docRef, { queue: arrayUnion(myTeam) });
 
-    try {
-      const q = query(collection(db, "teams"));
-      const snap = await getDocs(q);
-      snap.forEach(async (d) => {
-        if (d.data().name === myTeam) {
-          await updateDoc(doc(db, "teams", d.id), { buzzerPresses: (d.data().buzzerPresses || 0) + 1 });
-        }
-      });
-    } catch (err) {
-      console.error("Failed to update buzzer metrics", err);
+    // Atomically increment buzzerPresses using cached teamDocId
+    if (teamDocId) {
+      try {
+        await updateDoc(doc(db, "teams", teamDocId), { buzzerPresses: increment(1) });
+      } catch (err) {
+        console.error("Failed to update buzzer metrics", err);
+      }
     }
   };
 
   const handleAns = async (idx, correctIdx, currentQueue) => {
     const docRef = doc(db, "game_state", "current");
-    // Pause timer
     await updateDoc(docRef, { status: "evaluating" });
 
     if (idx === correctIdx) {
@@ -106,16 +105,12 @@ export default function ClientPortal() {
       const turnIndex = gameState?.attempts || 0;
       const pts = points[turnIndex] || 0;
 
-      const q = query(collection(db, "teams"));
-      const snap = await getDocs(q);
-      snap.forEach(async (d) => {
-        if (d.data().name === myTeam) {
-          await updateDoc(doc(db, "teams", d.id), { 
-            score: d.data().score + pts,
-            correctAnswers: (d.data().correctAnswers || 0) + 1
-          });
-        }
-      });
+      if (teamDocId) {
+        await updateDoc(doc(db, "teams", teamDocId), { 
+          score: increment(pts),
+          correctAnswers: increment(1)
+        });
+      }
       
       setPopup({ type: 'correct', msg: `CORRECT! +${pts} Points` });
       setTimeout(async () => {
@@ -124,15 +119,11 @@ export default function ClientPortal() {
       }, 2500);
 
     } else {
-      const q = query(collection(db, "teams"));
-      const snap = await getDocs(q);
-      snap.forEach(async (d) => {
-        if (d.data().name === myTeam) {
-          await updateDoc(doc(db, "teams", d.id), { 
-            wrongAnswers: (d.data().wrongAnswers || 0) + 1
-          });
-        }
-      });
+      if (teamDocId) {
+        await updateDoc(doc(db, "teams", teamDocId), { 
+          wrongAnswers: increment(1)
+        });
+      }
 
       setPopup({ type: 'wrong', msg: 'WRONG! Pass to next team.' });
       setTimeout(async () => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDoc, deleteDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, increment, query } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboard() {
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
           tSnap.forEach(async (d) => {
             if (d.data().name === missedTeam) {
               await updateDoc(doc(db, "teams", d.id), { 
-                missedAnswers: (d.data().missedAnswers || 0) + 1 
+                missedAnswers: increment(1) 
               });
             }
           });
@@ -336,17 +336,32 @@ export default function AdminDashboard() {
       return;
     }
     setIsLoading(true);
-    await addDoc(collection(db, "teams"), { name: newTeam, score: 0 });
+    await addDoc(collection(db, "teams"), { 
+      name: newTeam.trim(), 
+      score: 0, 
+      buzzerPresses: 0,
+      correctAnswers: 0,
+      wrongAnswers: 0,
+      missedAnswers: 0,
+      eliminated: false
+    });
     setNewTeam('');
     setIsLoading(false);
   };
 
   const resetScores = async () => {
-    showConfirm("Are you sure you want to reset all team scores to 0?", async () => {
+    showConfirm("Are you sure you want to reset all team scores and stats to 0?", async () => {
       setIsLoading(true);
       try {
-        await Promise.all(teams.map(t => updateDoc(doc(db, "teams", t.id), { score: 0 })));
-        showAlert("All scores have been reset to 0!");
+        await Promise.all(teams.map(t => updateDoc(doc(db, "teams", t.id), { 
+          score: 0, 
+          buzzerPresses: 0,
+          correctAnswers: 0,
+          wrongAnswers: 0,
+          missedAnswers: 0,
+          eliminated: false
+        })));
+        showAlert("All scores and stats have been reset to 0!");
       } catch (err) {
         console.error(err);
         showAlert("Failed to reset scores.");
@@ -491,6 +506,15 @@ export default function AdminDashboard() {
         >
           ⚙️ Game Settings
         </button>
+
+        <div className="mt-8 pt-8 border-t border-white/10">
+          <button 
+            onClick={() => setActiveTab('reset')} 
+            className={`w-full p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'reset' ? 'text-red-500 bg-red-500/10 border-r-4 border-red-500' : 'text-red-500/50 hover:bg-red-500/5'}`}
+          >
+            ⚠️ Factory Reset
+          </button>
+        </div>
       </nav>
 
       {/* Main Content */}
@@ -1196,6 +1220,77 @@ export default function AdminDashboard() {
                   Save Configuration
                 </button>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* RESET SYSTEM TAB */}
+        {activeTab === 'reset' && (
+          <section className="animate-in fade-in zoom-in-95 duration-300 max-w-2xl">
+            <h2 className="text-3xl font-bold font-mono text-red-500 mb-6 flex items-center gap-3">
+              <span className="animate-pulse">⚠️</span> Factory Reset
+            </h2>
+            
+            <div className="glass-panel p-8 rounded-2xl border-2 border-red-500/30">
+              <h3 className="text-xl font-bold text-white mb-4 uppercase tracking-widest font-mono">DANGER ZONE</h3>
+              <p className="text-white/60 mb-8 font-mono">
+                This action will completely wipe all participating teams, their scores, their buzzer stats, and reset the live game state back to zero. 
+                <br /><br />
+                <strong className="text-neon-green">Your Question Bank will NOT be deleted.</strong> You can safely run this to prepare for a brand new event while keeping your questions.
+              </p>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  showConfirm("CRITICAL WARNING: Are you absolutely sure you want to WIPE ALL TEAMS and RESET THE GAME STATE? This cannot be undone.", async () => {
+                    setIsLoading(true);
+                    try {
+                      // 1. Delete all teams
+                      const q = query(collection(db, "teams"));
+                      const snap = await getDocs(q);
+                      const deletePromises = [];
+                      snap.forEach(d => {
+                        deletePromises.push(deleteDoc(doc(db, "teams", d.id)));
+                      });
+                      await Promise.all(deletePromises);
+
+                      // 2. Reset game_state
+                      await setDoc(doc(db, "game_state", "current"), {
+                        activeQ: null,
+                        attempts: 0,
+                        currentPoints: [],
+                        queue: [],
+                        status: "waiting",
+                        timerValue: 0,
+                        roundNumber: 1,
+                        tieBreakerActive: false,
+                        tieBreakerTeams: []
+                      });
+
+                      // 3. Unlock all questions
+                      const qSnap = await getDocs(query(collection(db, "questions")));
+                      const updatePromises = [];
+                      qSnap.forEach(d => {
+                        if (d.data().pushed) {
+                          updatePromises.push(updateDoc(doc(db, "questions", d.id), { pushed: false }));
+                        }
+                      });
+                      await Promise.all(updatePromises);
+
+                      showAlert("FACTORY RESET COMPLETE. All teams deleted. Game state reset. Questions preserved.");
+                      setActiveTab('live');
+                    } catch (err) {
+                      console.error(err);
+                      showAlert("Failed to perform factory reset.");
+                    }
+                    setIsLoading(false);
+                  });
+                }}
+                className="w-full bg-red-500/20 text-red-500 py-6 rounded-xl font-black font-mono text-xl uppercase tracking-[0.2em] border-2 border-red-500 hover:bg-red-500 hover:text-white transition-all shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+              >
+                NUKE DATABASE (KEEP QUESTIONS)
+              </motion.button>
             </div>
           </section>
         )}
