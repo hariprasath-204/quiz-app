@@ -632,22 +632,22 @@ export default function AdminDashboard() {
 
             <div className="glass-panel p-8 rounded-2xl">
               <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-3">
-                <h3 className="text-xl font-bold font-mono">⚡ Buzzer Queue</h3>
+                <h3 className="text-xl font-bold font-mono">⚡ Buzzer Queue (Top 4 to Answer)</h3>
                 <span className="text-white/30 font-mono text-xs uppercase tracking-widest">
-                  {gameState?.queue?.length || 0} Teams Pressed · Sorted Fastest → Slowest
+                  {gameState?.queue?.length || 0} Pressed · Showing Top 4 · Fastest → Slowest
                 </span>
               </div>
               <div className="space-y-2">
                 {(() => {
                   const queue = gameState?.queue || [];
                   const times = gameState?.queueTimes || {};
-                  // Sort: teams with times fastest first, then teams without times at end
+                  // Sort by fastest response time, then take top 4 for answering
                   const sorted = [...queue].sort((a, b) => {
                     const ta = times[a] != null ? times[a] : Infinity;
                     const tb = times[b] != null ? times[b] : Infinity;
                     return ta - tb;
-                  });
-                  const medals = ['🥇', '🥈', '🥉'];
+                  }).slice(0, 4);
+                  const medals = ['🥇', '🥈', '🥉', '4️⃣'];
                   const fastest = times[sorted[0]];
 
                   return sorted.length === 0 ? (
