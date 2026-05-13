@@ -64,7 +64,7 @@ export default function ClientPortal() {
     await updateDoc(docRef, { status: "evaluating" });
 
     if (idx === correctIdx) {
-      const points = [10, 7, 5, 3];
+      const points = gameState?.currentPoints || [10, 7, 5, 3];
       const turnIndex = 4 - currentQueue.length;
       const pts = points[turnIndex] || 0;
 

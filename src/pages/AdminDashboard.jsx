@@ -6,10 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('live');
   const [gameState, setGameState] = useState(null);
-  const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10 }, { id: 2, capacity: 7 }, { id: 3, capacity: 5 }]);
+  const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10, points: "10, 7, 5, 3" }, { id: 2, capacity: 7, points: "10, 7, 5, 3" }, { id: 3, capacity: 5, points: "10, 7, 5, 3" }]);
   const [questions, setQuestions] = useState([]);
   const [teams, setTeams] = useState([]);
-  const [roundWinners, setRoundWinners] = useState({});
   
   // Forms
   const [newTeam, setNewTeam] = useState('');
@@ -54,17 +53,11 @@ export default function AdminDashboard() {
       s.forEach(d => t.push({ id: d.id, ...d.data() }));
       setTeams(t.sort((a,b) => b.score - a.score));
     });
-    
-    const unSubRoundWinners = onSnapshot(doc(db, "game_state", "round_winners"), (s) => {
-      if (s.exists()) setRoundWinners(s.data());
-    });
-
     return () => {
       unSubState();
       unSubSettings();
       unSubQ();
       unSubTeams();
-      unSubRoundWinners();
     };
   }, []);
 
@@ -148,8 +141,11 @@ export default function AdminDashboard() {
 
   const pushQuestion = async (q) => {
     setIsLoading(true);
+    const roundConfig = roundsConfig.find(r => r.id === (q.round || 1));
+    const roundPoints = roundConfig?.points ? roundConfig.points.split(',').map(p => parseInt(p.trim())) : [10, 7, 5, 3];
+    
     const docRef = doc(db, "game_state", "current");
-    await setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0 }, { merge: true });
+    await setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0, currentPoints: roundPoints }, { merge: true });
     if (q.id) {
       await updateDoc(doc(db, "questions", q.id), { pushed: true });
     }
@@ -309,27 +305,6 @@ export default function AdminDashboard() {
     });
   };
 
-  const setRoundWinner = async (roundId, teamId) => {
-    const roundKey = roundId.toString();
-    const prevWinnerId = roundWinners[roundKey];
-    if (prevWinnerId === teamId) return;
-
-    setIsLoading(true);
-    try {
-      if (prevWinnerId) {
-        await updateDoc(doc(db, "teams", prevWinnerId), { score: increment(-1) });
-      }
-      if (teamId) {
-        await updateDoc(doc(db, "teams", teamId), { score: increment(1) });
-      }
-      await setDoc(doc(db, "game_state", "round_winners"), { [roundKey]: teamId }, { merge: true });
-    } catch (err) {
-      console.error(err);
-      showAlert("Failed to assign round point.");
-    }
-    setIsLoading(false);
-  };
-
   return (
     <div className="flex h-screen overflow-hidden bg-dark-bg font-sans relative">
       {/* CUSTOM MODAL */}
@@ -409,12 +384,7 @@ export default function AdminDashboard() {
         >
           👥 Teams
         </button>
-        <button 
-          onClick={() => setActiveTab('points')} 
-          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'points' ? 'text-orange-400 bg-orange-400/10 border-r-4 border-orange-400' : 'text-white/60 hover:bg-white/5'}`}
-        >
-          🎖️ Round Points
-        </button>
+
         <button 
           onClick={() => setActiveTab('eliminations')} 
           className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'eliminations' ? 'text-red-500 bg-red-500/10 border-r-4 border-red-500' : 'text-white/60 hover:bg-white/5'}`}
@@ -822,49 +792,6 @@ export default function AdminDashboard() {
           </section>
         )}
 
-        {/* POINTS TAB */}
-        {activeTab === 'points' && (
-          <section className="animate-in fade-in zoom-in-95 duration-300">
-            <h2 className="text-3xl font-bold font-mono text-orange-400 mb-6">Round Winners & Points</h2>
-            <p className="text-white/50 mb-8 font-mono">Assign 1 point to a team for winning a specific round. Changing the team will dynamically adjust the scores.</p>
-            
-            <div className="space-y-4">
-              {roundsConfig.map(round => {
-                const roundId = round.id;
-                const roundKey = roundId.toString();
-                const currentWinnerId = roundWinners[roundKey] || '';
-                
-                return (
-                  <div key={roundId} className="glass-panel p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-orange-400/50 hover:bg-orange-400/5 transition-all">
-                    <div>
-                      <h3 className="text-xl font-bold font-mono text-white mb-2">Round {roundId}</h3>
-                      <p className="text-sm font-mono text-white/50">{round.capacity} Questions Capacity</p>
-                    </div>
-                    
-                    <div className="flex gap-4 items-center">
-                      <select 
-                        value={currentWinnerId}
-                        onChange={(e) => setRoundWinner(roundId, e.target.value)}
-                        className="bg-dark-bg/50 border border-orange-400/30 p-3 rounded-xl text-orange-400 outline-none focus:border-orange-400 font-mono w-64 font-bold"
-                      >
-                        <option value="">-- No Winner Assigned --</option>
-                        {teams.map(t => (
-                          <option key={t.id} value={t.id}>{t.name} ({t.score} pts)</option>
-                        ))}
-                      </select>
-                      
-                      {currentWinnerId && (
-                        <div className="bg-orange-400/20 text-orange-400 px-4 py-2 rounded-lg font-mono font-bold text-sm border border-orange-400/50 shadow-[0_0_10px_rgba(251,146,60,0.2)]">
-                          +1 POINT AWARDED
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
@@ -879,19 +806,35 @@ export default function AdminDashboard() {
                 {roundsConfig.map((r, i) => (
                   <div key={i} className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10">
                     <span className="font-mono text-lg font-bold w-32">Round {r.id}</span>
-                    <div className="flex-1 flex items-center gap-4">
-                      <label className="text-white/40 font-mono text-sm">Capacity:</label>
-                      <input 
-                        type="number" 
-                        min="1"
-                        value={r.capacity} 
-                        onChange={(e) => {
-                          const newConfig = [...roundsConfig];
-                          newConfig[i].capacity = parseInt(e.target.value) || 1;
-                          setRoundsConfig(newConfig);
-                        }}
-                        className="bg-dark-bg border border-white/20 p-2 rounded-lg text-white outline-none focus:border-neon-blue w-24 font-mono text-center"
-                      />
+                    <div className="flex-1 flex flex-col gap-4">
+                      <div className="flex items-center gap-4">
+                        <label className="text-white/40 font-mono text-sm w-36">Capacity (Qs):</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          value={r.capacity} 
+                          onChange={(e) => {
+                            const newConfig = [...roundsConfig];
+                            newConfig[i].capacity = parseInt(e.target.value) || 1;
+                            setRoundsConfig(newConfig);
+                          }}
+                          className="bg-dark-bg border border-white/20 p-2 rounded-lg text-white outline-none focus:border-neon-blue w-24 font-mono text-center"
+                        />
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <label className="text-white/40 font-mono text-sm w-36">Points Distribution:</label>
+                        <input 
+                          type="text" 
+                          value={r.points || "10, 7, 5, 3"} 
+                          onChange={(e) => {
+                            const newConfig = [...roundsConfig];
+                            newConfig[i].points = e.target.value;
+                            setRoundsConfig(newConfig);
+                          }}
+                          placeholder="10, 7, 5, 3"
+                          className="bg-dark-bg border border-white/20 p-2 rounded-lg text-white outline-none focus:border-neon-blue w-48 font-mono"
+                        />
+                      </div>
                     </div>
                     <button 
                       onClick={() => {
@@ -911,7 +854,7 @@ export default function AdminDashboard() {
               <div className="flex gap-4">
                 <button 
                   onClick={() => {
-                    const newConfig = [...roundsConfig, { id: roundsConfig.length + 1, capacity: 5 }];
+                    const newConfig = [...roundsConfig, { id: roundsConfig.length + 1, capacity: 5, points: "10, 7, 5, 3" }];
                     setRoundsConfig(newConfig);
                   }}
                   className="bg-white/10 hover:bg-white/20 text-white border border-white/30 font-bold font-mono px-6 py-3 rounded-xl transition-all"
