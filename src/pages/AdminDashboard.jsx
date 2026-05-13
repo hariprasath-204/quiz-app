@@ -256,6 +256,35 @@ export default function AdminDashboard() {
     });
   };
 
+  const finishGame = async () => {
+    showConfirm("Are you sure you want to finish the game? This will unlock all questions to be used again.", async () => {
+      setIsLoading(true);
+      try {
+        const q = query(collection(db, "questions"));
+        const snap = await getDocs(q);
+        const updates = [];
+        snap.forEach(d => {
+          if (d.data().pushed) {
+            updates.push(updateDoc(doc(db, "questions", d.id), { pushed: false }));
+          }
+        });
+        await Promise.all(updates);
+        
+        await updateDoc(doc(db, "game_state", "current"), { 
+          tieBreakerActive: false,
+          tieBreakerTeams: [],
+          activeQ: null
+        });
+        
+        showAlert("Game Finished! All questions unlocked successfully.");
+      } catch (err) {
+        console.error(err);
+        showAlert("Failed to unlock questions.");
+      }
+      setIsLoading(false);
+    });
+  };
+
   const toggleTieBreakerMode = async (isActive, tiedTeamNames = []) => {
     setIsLoading(true);
     const docRef = doc(db, "game_state", "current");
@@ -444,22 +473,36 @@ export default function AdminDashboard() {
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
-                <motion.button 
-                  whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(0, 255, 102, 0.4)' }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={startSequence} 
-                  className="bg-neon-green/10 hover:bg-neon-green/20 text-neon-green border border-neon-green font-bold py-5 rounded-xl transition-colors shadow-lg shadow-neon-green/10"
-                >
-                  START 3-2-1 & OPEN BUZZER
-                </motion.button>
-                <motion.button 
-                  whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(176, 38, 255, 0.4)' }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={forceAnswering} 
-                  className="bg-neon-purple/10 hover:bg-neon-purple/20 text-neon-purple border border-neon-purple font-bold py-5 rounded-xl transition-colors shadow-lg shadow-neon-purple/10"
-                >
-                  FORCE ANSWERING
-                </motion.button>
+                {gameState?.activeQ ? (
+                  <>
+                    <motion.button 
+                      whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(0, 255, 102, 0.4)' }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={startSequence} 
+                      className="bg-neon-green/10 hover:bg-neon-green/20 text-neon-green border border-neon-green font-bold py-5 rounded-xl transition-colors shadow-lg shadow-neon-green/10"
+                    >
+                      START 3-2-1 & OPEN BUZZER
+                    </motion.button>
+                    <motion.button 
+                      whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(176, 38, 255, 0.4)' }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={forceAnswering} 
+                      className="bg-neon-purple/10 hover:bg-neon-purple/20 text-neon-purple border border-neon-purple font-bold py-5 rounded-xl transition-colors shadow-lg shadow-neon-purple/10"
+                    >
+                      FORCE ANSWERING
+                    </motion.button>
+                  </>
+                ) : (
+                  <motion.button 
+                    whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(255, 255, 255, 0.4)' }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={finishGame} 
+                    className="md:col-span-2 bg-white/10 hover:bg-white/20 text-white border border-white/50 font-bold py-5 rounded-xl transition-colors shadow-lg shadow-white/10"
+                  >
+                    FINISH GAME & UNLOCK ALL QUESTIONS
+                  </motion.button>
+                )}
+                
                 <motion.button 
                   whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(255, 0, 127, 0.4)' }}
                   whileTap={{ scale: 0.95 }}
