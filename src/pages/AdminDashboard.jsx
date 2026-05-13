@@ -63,6 +63,25 @@ export default function AdminDashboard() {
     };
   }, []);
 
+  // Auto-select lowest scoring team for elimination when tab is opened
+  useEffect(() => {
+    if (activeTab === 'eliminations' && !elimTargetId && teams.length > 0) {
+      const activeTeams = teams.filter(t => !t.eliminated);
+      if (activeTeams.length > 0) {
+        const sortedForElim = [...activeTeams].sort((a, b) => {
+          if (a.score !== b.score) return a.score - b.score;
+          return (a.buzzerPresses || 0) - (b.buzzerPresses || 0);
+        });
+        setElimTargetId(sortedForElim[0].id);
+      }
+    }
+  }, [activeTab, teams, elimTargetId]);
+
+  // Reset target IDs when leaving tabs to re-trigger auto-selection
+  useEffect(() => {
+    if (activeTab !== 'eliminations') setElimTargetId('');
+  }, [activeTab]);
+
   // Auto-calculate selections when tabs change or teams update
   useEffect(() => {
     const activeTeams = teams.filter(t => !t.eliminated);
