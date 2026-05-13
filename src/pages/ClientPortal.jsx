@@ -68,19 +68,18 @@ export default function ClientPortal() {
   const startScreenShare = async () => {
     // Warn before showing picker
     const ok = window.confirm(
-      '📺 Screen Share Instructions:\n\n' +
-      '• In the picker that appears, select "THIS TAB" (not "Entire Screen" or "Window")\n' +
-      '• This ensures only your quiz page is shared\n' +
-      '• Do NOT share the Master Monitor tab\n\n' +
+      '📺 Screen Share\n\n' +
+      'In the picker, select:\n' +
+      '• "Entire Screen" — to share your full desktop\n' +
+      '• "Window" — to share just this browser\n' +
+      '• "Tab" — to share only this quiz tab\n\n' +
       'Click OK to open the screen picker.'
     );
     if (!ok) return;
     try {
-      // preferCurrentTab pre-selects this tab in Chrome, reducing mirror risk
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { cursor: 'always' },
         audio: false,
-        preferCurrentTab: true,
       });
       setIsSharing(true);
 

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 
 export default function Leaderboard() {
   const [teams, setTeams] = useState([]);
+  const [presence, setPresence] = useState({});
   const [isRevealing, setIsRevealing] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,15 @@ export default function Leaderboard() {
       }));
     });
     return () => unSubTeams();
+  }, []);
+
+  useEffect(() => {
+    const unSub = onSnapshot(collection(db, 'presence'), s => {
+      const p = {};
+      s.forEach(d => { p[d.id] = d.data(); });
+      setPresence(p);
+    });
+    return () => unSub();
   }, []);
 
   const totalTeams = teams.length;
@@ -88,6 +98,7 @@ export default function Leaderboard() {
           <div className="flex flex-col gap-4">
             {teams.map((team, index) => {
               const rank = index + 1;
+              const tabSwitches = presence[team.name]?.tabSwitches || 0;
               let rankStyle = "bg-dark-surface border-white/10 text-white";
               let rankText = "text-white/50";
               let shadow = "shadow-lg";
@@ -123,6 +134,15 @@ export default function Leaderboard() {
                     <div className="text-2xl md:text-3xl font-bold tracking-wider uppercase font-mono flex-1">
                       {team.name}
                     </div>
+                    {/* Cheat badge */}
+                    {tabSwitches > 0 && (
+                      <div className="flex items-center gap-1.5 bg-red-500/15 border border-red-500/40 px-3 py-1 rounded-full">
+                        <span className="text-red-400 text-sm">⚠️</span>
+                        <span className="text-red-400 font-mono text-xs font-bold uppercase tracking-widest">
+                          {tabSwitches} Tab Switch{tabSwitches > 1 ? 'es' : ''}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex items-center gap-6 text-sm md:text-base font-mono flex-wrap justify-center md:justify-end mt-6 md:mt-0 w-full md:w-auto">
