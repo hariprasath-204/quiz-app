@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [gameState, setGameState] = useState(null);
   const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10, points: "10, 7, 5, 3" }, { id: 2, capacity: 7, points: "10, 7, 5, 3" }, { id: 3, capacity: 5, points: "10, 7, 5, 3" }]);
   const [tieBreakerPoints, setTieBreakerPoints] = useState("8, 6");
+  const [queueLimit, setQueueLimit] = useState(4);
   const [questions, setQuestions] = useState([]);
   const [teams, setTeams] = useState([]);
   
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
       if (s.exists()) {
         if (s.data().roundsConfig) setRoundsConfig(s.data().roundsConfig);
         if (s.data().tieBreakerPoints) setTieBreakerPoints(s.data().tieBreakerPoints);
+        if (s.data().queueLimit != null) setQueueLimit(s.data().queueLimit);
       }
     });
     
@@ -121,7 +123,7 @@ export default function AdminDashboard() {
 
   const saveSettings = async () => {
     setIsLoading(true);
-    await setDoc(doc(db, "game_state", "settings"), { roundsConfig, tieBreakerPoints }, { merge: true });
+    await setDoc(doc(db, "game_state", "settings"), { roundsConfig, tieBreakerPoints, queueLimit }, { merge: true });
     showAlert("Settings Saved!");
     setIsLoading(false);
   };
@@ -280,7 +282,17 @@ export default function AdminDashboard() {
     const snap = await getDoc(docRef);
     const data = snap.data();
     if (data && data.queue && data.queue.length > 0) {
-      startAnswerTimer(data.queue);
+      const times = data.queueTimes || {};
+      // Sort queue fastest → slowest so queue[0] is the fastest team
+      // ClientPortal uses queue[0] to open the answer panel
+      const sortedQueue = [...data.queue].sort((a, b) => {
+        const ta = times[a] != null ? times[a] : Infinity;
+        const tb = times[b] != null ? times[b] : Infinity;
+        return ta - tb;
+      });
+      // Write sorted order back to Firestore so all clients see correct turn order
+      await updateDoc(docRef, { queue: sortedQueue });
+      startAnswerTimer(sortedQueue);
     } else {
       await updateDoc(docRef, { status: "waiting", timerValue: 0 });
     }
@@ -632,9 +644,9 @@ export default function AdminDashboard() {
 
             <div className="glass-panel p-8 rounded-2xl">
               <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-3">
-                <h3 className="text-xl font-bold font-mono">⚡ Buzzer Queue (Top 4 to Answer)</h3>
+                <h3 className="text-xl font-bold font-mono">⚡ Buzzer Queue (Top {queueLimit} to Answer)</h3>
                 <span className="text-white/30 font-mono text-xs uppercase tracking-widest">
-                  {gameState?.queue?.length || 0} Pressed · Showing Top 4 · Fastest → Slowest
+                  {gameState?.queue?.length || 0} Pressed · Showing Top {queueLimit} · Fastest → Slowest
                 </span>
               </div>
               <div className="space-y-2">
@@ -646,7 +658,7 @@ export default function AdminDashboard() {
                     const ta = times[a] != null ? times[a] : Infinity;
                     const tb = times[b] != null ? times[b] : Infinity;
                     return ta - tb;
-                  }).slice(0, 4);
+                  }).slice(0, queueLimit);
                   const medals = ['🥇', '🥈', '🥉', '4️⃣'];
                   const fastest = times[sorted[0]];
 
@@ -1313,6 +1325,21 @@ export default function AdminDashboard() {
                     className="bg-dark-bg border border-red-500/50 p-2 rounded-lg text-white outline-none focus:border-red-500 w-48 font-mono"
                   />
                   <span className="text-xs text-white/30 font-mono">Only top tied teams get a chance to score and break the tie.</span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-xl border border-neon-blue/30 mb-8">
+                <h3 className="font-mono text-lg font-bold text-neon-blue mb-4">Buzzer Queue Limit</h3>
+                <div className="flex items-center gap-4">
+                  <label className="text-white/40 font-mono text-sm w-48">Max Teams in Queue:</label>
+                  <input 
+                    type="number" 
+                    min="1" max="20"
+                    value={queueLimit}
+                    onChange={(e) => setQueueLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="bg-dark-bg border border-neon-blue/50 p-2 rounded-lg text-white outline-none focus:border-neon-blue w-24 font-mono text-center text-lg"
+                  />
+                  <span className="text-xs text-white/30 font-mono">Only the top <strong className="text-neon-blue">{queueLimit}</strong> fastest teams will be eligible to answer each question.</span>
                 </div>
               </div>
               
