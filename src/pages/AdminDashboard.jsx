@@ -145,7 +145,7 @@ export default function AdminDashboard() {
     const roundPoints = roundConfig?.points ? roundConfig.points.split(',').map(p => parseInt(p.trim())) : [10, 7, 5, 3];
     
     const docRef = doc(db, "game_state", "current");
-    await setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0, currentPoints: roundPoints }, { merge: true });
+    await setDoc(docRef, { activeQ: q, status: "waiting", queue: [], timerValue: 0, currentPoints: roundPoints, attempts: 0 }, { merge: true });
     if (q.id) {
       await updateDoc(doc(db, "questions", q.id), { pushed: true });
     }

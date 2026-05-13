@@ -91,7 +91,7 @@ export default function ClientPortal() {
 
     if (idx === correctIdx) {
       const points = gameState?.currentPoints || [10, 7, 5, 3];
-      const turnIndex = 4 - currentQueue.length;
+      const turnIndex = gameState?.attempts || 0;
       const pts = points[turnIndex] || 0;
 
       const q = query(collection(db, "teams"));
@@ -114,7 +114,7 @@ export default function ClientPortal() {
         setPopup(null);
         const newQueue = currentQueue.slice(1);
         if (newQueue.length > 0) {
-          await updateDoc(docRef, { queue: newQueue, status: "pass_to_next" });
+          await updateDoc(docRef, { queue: newQueue, status: "pass_to_next", attempts: (gameState?.attempts || 0) + 1 });
         } else {
           await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
         }
