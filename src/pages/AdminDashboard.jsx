@@ -499,6 +499,15 @@ export default function AdminDashboard() {
           🚀 Push Live
         </button>
         <button 
+          onClick={() => setActiveTab('queue_verify')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all relative ${activeTab === 'queue_verify' ? 'text-cyan-400 bg-cyan-400/10 border-r-4 border-cyan-400' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          🔍 Queue Verify
+          {gameState?.queue?.length > 0 && gameState?.status === 'buzzer_open' && (
+            <span className="absolute right-3 top-3 w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+          )}
+        </button>
+        <button 
           onClick={() => setActiveTab('questions')} 
           className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'questions' ? 'text-neon-purple bg-neon-purple/10 border-r-4 border-neon-purple' : 'text-white/60 hover:bg-white/5'}`}
         >
@@ -712,6 +721,115 @@ export default function AdminDashboard() {
             </div>
           </section>
         )}
+
+
+        {/* QUEUE VERIFY TAB */}
+        {activeTab === 'queue_verify' && (() => {
+          const queue = gameState?.queue || [];
+          const times = gameState?.queueTimes || {};
+          const sortedQueue = [...queue].sort((a, b) => {
+            const ta = times[a] != null ? times[a] : Infinity;
+            const tb = times[b] != null ? times[b] : Infinity;
+            return ta - tb;
+          });
+          const topQueue = sortedQueue.slice(0, queueLimit);
+          const fastest = topQueue[0];
+          const medals = ['🥇', '🥈', '🥉', '4️⃣'];
+
+          return (
+            <section className="animate-in fade-in zoom-in-95 duration-300 max-w-3xl">
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold font-mono text-cyan-400 mb-1">🔍 Queue Verification</h2>
+                  <p className="text-white/40 font-mono text-sm">Review the buzzer queue — verify the order, then open the answer panel.</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/30 font-mono text-xs uppercase tracking-widest">Active Question</p>
+                  <p className="text-white font-bold font-mono text-lg">{gameState?.activeQ?.text || '— No active question'}</p>
+                </div>
+              </div>
+
+              {/* Status Banner */}
+              <div className={`p-4 rounded-xl mb-6 font-mono text-sm font-bold uppercase tracking-widest text-center ${
+                gameState?.status === 'buzzer_open' ? 'bg-neon-green/10 border border-neon-green text-neon-green' :
+                gameState?.status === 'answering' ? 'bg-neon-blue/10 border border-neon-blue text-neon-blue' :
+                'bg-white/5 border border-white/10 text-white/40'
+              }`}>
+                {gameState?.status === 'buzzer_open' && '⚡ Buzzer Open — Teams are pressing now'}
+                {gameState?.status === 'answering' && `⏱ Answering: ${gameState?.queue?.[0] || '...'}`}
+                {gameState?.status === 'waiting' && '⏸ Waiting — No buzzer active'}
+                {!['buzzer_open','answering','waiting'].includes(gameState?.status) && `Status: ${gameState?.status}`}
+              </div>
+
+              {/* Sorted Queue */}
+              <div className="glass-panel rounded-2xl overflow-hidden mb-6">
+                <div className="bg-white/5 px-6 py-4 border-b border-white/10 flex justify-between items-center">
+                  <span className="font-mono font-bold text-white">📊 Buzzer Order (Sorted by Response Time)</span>
+                  <span className="text-white/30 font-mono text-xs">{queue.length} pressed · top {queueLimit} shown</span>
+                </div>
+                {topQueue.length === 0 ? (
+                  <div className="p-10 text-center text-white/30 font-mono italic">No teams in queue yet</div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {topQueue.map((team, i) => {
+                      const ms = times[team];
+                      const gap = ms != null && times[fastest] != null ? ms - times[fastest] : null;
+                      return (
+                        <div key={team} className={`flex items-center justify-between px-6 py-5 ${i === 0 ? 'bg-cyan-400/5' : ''}`}>
+                          <div className="flex items-center gap-5">
+                            <span className="text-2xl">{medals[i] || `#${i+1}`}</span>
+                            <div>
+                              <p className="font-black font-mono text-xl text-white">{team}</p>
+                              {i === 0 && <p className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Will answer first</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-8 text-right">
+                            <div>
+                              <p className="text-white/30 font-mono text-[10px] uppercase tracking-widest mb-0.5">Response Time</p>
+                              <p className={`font-black font-mono text-xl ${ms < 1000 ? 'text-neon-green' : ms < 3000 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                                {ms != null ? (ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(3)}s`) : 'N/A'}
+                              </p>
+                            </div>
+                            {i > 0 && gap != null && (
+                              <div>
+                                <p className="text-white/30 font-mono text-[10px] uppercase tracking-widest mb-0.5">Gap</p>
+                                <p className="font-mono text-white/40">+{gap < 1000 ? `${gap}ms` : `${(gap/1000).toFixed(3)}s`}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-4">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    forceAnswering();
+                    setActiveTab('live');
+                  }}
+                  disabled={topQueue.length === 0}
+                  className="flex-1 bg-cyan-400/20 text-cyan-400 border-2 border-cyan-400 font-black font-mono py-6 rounded-2xl uppercase tracking-[0.15em] text-lg hover:bg-cyan-400/30 transition-all shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  ✅ Confirm Queue & Open Answer Panel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={resetSystem}
+                  className="bg-neon-pink/10 text-neon-pink border border-neon-pink font-bold font-mono px-8 py-6 rounded-2xl uppercase tracking-widest hover:bg-neon-pink/20 transition-all"
+                >
+                  Reset
+                </motion.button>
+              </div>
+            </section>
+          );
+        })()}
 
 
         {/* QUESTIONS TAB */}
