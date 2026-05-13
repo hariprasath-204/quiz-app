@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, increment, query } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, increment, query, serverTimestamp, orderBy } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboard() {
@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   // Loading & Modal State
   const [isLoading, setIsLoading] = useState(false);
   const [modal, setModal] = useState(null); // { message, onConfirm, type: 'alert' | 'confirm' }
+  const [buzzerEvents, setBuzzerEvents] = useState([]);
   const ansIntervalRef = useRef(null);
 
   const showAlert = (msg) => setModal({ type: 'alert', message: msg });
@@ -55,11 +56,22 @@ export default function AdminDashboard() {
       s.forEach(d => t.push({ id: d.id, ...d.data() }));
       setTeams(t.sort((a,b) => b.score - a.score));
     });
+
+    const unSubEvents = onSnapshot(
+      query(collection(db, "buzzer_events"), orderBy("pressedAt", "desc")),
+      (s) => {
+        const evts = [];
+        s.forEach(d => evts.push({ id: d.id, ...d.data() }));
+        setBuzzerEvents(evts);
+      }
+    );
+
     return () => {
       unSubState();
       unSubSettings();
       unSubQ();
       unSubTeams();
+      unSubEvents();
     };
   }, []);
 
@@ -197,8 +209,9 @@ export default function AdminDashboard() {
       await new Promise(r => setTimeout(r, 1000));
     }
 
-    // Buzzer Open
-    await updateDoc(docRef, { status: "buzzer_open", timerValue: 10 });
+    // Buzzer Open — record exact timestamp so clients can compute response time
+    const openedAt = Date.now();
+    await updateDoc(docRef, { status: "buzzer_open", timerValue: 10, buzzerOpenedAt: openedAt, queueTimes: {} });
     let timeLeft = 10;
     const timerInterval = setInterval(async () => {
       timeLeft--;
@@ -510,6 +523,12 @@ export default function AdminDashboard() {
         >
           ⚙️ Game Settings
         </button>
+        <button 
+          onClick={() => setActiveTab('analytics')} 
+          className={`p-3 text-left font-mono rounded-lg transition-all ${activeTab === 'analytics' ? 'text-yellow-400 bg-yellow-400/10 border-r-4 border-yellow-400' : 'text-white/60 hover:bg-white/5'}`}
+        >
+          📊 Buzzer Analytics
+        </button>
 
         <div className="mt-8 pt-8 border-t border-white/10">
           <button 
@@ -614,12 +633,30 @@ export default function AdminDashboard() {
             <div className="glass-panel p-8 rounded-2xl">
               <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2 font-mono">Buzzer Queue (First 4 Teams)</h3>
               <div className="space-y-3">
-                {gameState?.queue?.slice(0, 4).map((team, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border-l-4 border-neon-blue">
-                    <span className="font-bold text-lg font-mono">#{i+1} {team}</span>
-                    <span className="text-xs text-neon-green uppercase font-black font-mono">Ready to answer</span>
-                  </div>
-                ))}
+                {gameState?.queue?.slice(0, 4).map((team, i) => {
+                  const ms = gameState?.queueTimes?.[team];
+                  const colors = ['border-neon-blue','border-neon-purple','border-neon-pink','border-orange-500'];
+                  return (
+                    <div key={i} className={`flex items-center justify-between bg-white/5 p-4 rounded-xl border-l-4 ${colors[i]}`}>
+                      <div>
+                        <span className="font-bold text-lg font-mono">#{i+1} {team}</span>
+                      </div>
+                      <div className="flex items-center gap-6 text-right">
+                        {ms != null ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-white/30 font-mono uppercase tracking-widest">Response Time</span>
+                            <span className={`font-black font-mono text-lg ${ms < 1000 ? 'text-neon-green' : ms < 3000 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                              {ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(2)}s`}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-white/20 font-mono text-sm">Pre-open</span>
+                        )}
+                        <span className="text-xs text-neon-green uppercase font-black font-mono">Ready</span>
+                      </div>
+                    </div>
+                  );
+                })}
                 {(!gameState?.queue || gameState.queue.length === 0) && (
                   <p className="text-white/30 font-mono italic">Queue is empty</p>
                 )}
@@ -1262,6 +1299,112 @@ export default function AdminDashboard() {
             </div>
           </section>
         )}
+
+        {/* ANALYTICS TAB */}
+        {activeTab === 'analytics' && (() => {
+          // Group events by round then by question
+          const grouped = {};
+          buzzerEvents.forEach(evt => {
+            const roundKey = evt.round === 'tie_breaker' ? 'Tie Breaker' : `Round ${evt.round || 1}`;
+            if (!grouped[roundKey]) grouped[roundKey] = {};
+            const qKey = evt.questionText || 'Unknown Question';
+            if (!grouped[roundKey][qKey]) grouped[roundKey][qKey] = [];
+            grouped[roundKey][qKey].push(evt);
+          });
+
+          return (
+            <section className="animate-in fade-in zoom-in-95 duration-300">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold font-mono text-yellow-400">📊 Buzzer Analytics</h2>
+                <button
+                  onClick={() => showConfirm("Clear all buzzer event logs? This cannot be undone.", async () => {
+                    setIsLoading(true);
+                    const snap = await getDocs(query(collection(db, "buzzer_events")));
+                    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "buzzer_events", d.id))));
+                    setIsLoading(false);
+                    showAlert("All buzzer logs cleared.");
+                  })}
+                  className="text-red-500/60 hover:text-red-500 font-mono text-sm border border-red-500/30 hover:border-red-500 px-4 py-2 rounded-lg transition-all"
+                >
+                  Clear All Logs
+                </button>
+              </div>
+
+              <p className="text-white/40 font-mono text-sm mb-8">
+                Every buzzer press is timestamped. Use this to resolve disputes — the data doesn't lie.
+              </p>
+
+              {Object.keys(grouped).length === 0 ? (
+                <div className="glass-panel p-12 rounded-2xl text-center">
+                  <p className="text-white/30 font-mono italic">No buzzer events recorded yet. Start a round to begin tracking.</p>
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  {Object.entries(grouped).map(([round, questions]) => (
+                    <div key={round}>
+                      <h3 className="text-lg font-black font-mono text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-3">
+                        <span className="h-px flex-1 bg-yellow-400/20" />
+                        {round}
+                        <span className="h-px flex-1 bg-yellow-400/20" />
+                      </h3>
+                      <div className="space-y-6">
+                        {Object.entries(questions).map(([qText, events]) => (
+                          <div key={qText} className="glass-panel rounded-2xl overflow-hidden">
+                            <div className="bg-white/5 px-6 py-4 border-b border-white/10">
+                              <p className="font-mono text-white/80 font-bold">{qText}</p>
+                            </div>
+                            <table className="w-full">
+                              <thead>
+                                <tr className="text-white/30 text-xs font-mono uppercase tracking-widest border-b border-white/5">
+                                  <th className="text-left p-4">Position</th>
+                                  <th className="text-left p-4">Team</th>
+                                  <th className="text-left p-4">Response Time</th>
+                                  <th className="text-left p-4">Advantage</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                {[...events].sort((a,b) => (a.responseMs||Infinity) - (b.responseMs||Infinity)).map((evt, i) => {
+                                  const fastest = events.reduce((min, e) => (e.responseMs||Infinity) < (min.responseMs||Infinity) ? e : min, events[0]);
+                                  const diff = evt.responseMs != null && fastest.responseMs != null ? evt.responseMs - fastest.responseMs : null;
+                                  return (
+                                    <tr key={evt.id} className={`hover:bg-white/5 transition-colors ${i === 0 ? 'bg-neon-green/5' : ''}`}>
+                                      <td className="p-4 font-mono">
+                                        <span className={`font-black text-lg ${i === 0 ? 'text-neon-green' : i === 1 ? 'text-yellow-400' : i === 2 ? 'text-orange-400' : 'text-white/40'}`}>
+                                          #{i + 1}
+                                        </span>
+                                      </td>
+                                      <td className="p-4 font-bold font-mono">{evt.team}</td>
+                                      <td className="p-4 font-mono">
+                                        {evt.responseMs != null ? (
+                                          <span className={`font-black ${i === 0 ? 'text-neon-green' : 'text-white/60'}`}>
+                                            {evt.responseMs < 1000 ? `${evt.responseMs}ms` : `${(evt.responseMs/1000).toFixed(3)}s`}
+                                          </span>
+                                        ) : (
+                                          <span className="text-white/20">Pre-open</span>
+                                        )}
+                                      </td>
+                                      <td className="p-4 font-mono text-sm">
+                                        {i === 0 ? (
+                                          <span className="text-neon-green font-bold">🏁 Fastest</span>
+                                        ) : diff != null ? (
+                                          <span className="text-white/40">+{diff < 1000 ? `${diff}ms` : `${(diff/1000).toFixed(3)}s`} slower</span>
+                                        ) : '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
         {/* RESET SYSTEM TAB */}
         {activeTab === 'reset' && (

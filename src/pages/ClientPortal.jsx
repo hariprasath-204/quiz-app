@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, increment } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, increment, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 
 export default function ClientPortal() {
@@ -84,7 +84,32 @@ export default function ClientPortal() {
   const sendBuzz = async () => {
     playBuzzSound();
     const docRef = doc(db, "game_state", "current");
-    await updateDoc(docRef, { queue: arrayUnion(myTeam) });
+
+    // Compute response time since buzzer was opened
+    const responseMs = gameState?.buzzerOpenedAt 
+      ? Date.now() - gameState.buzzerOpenedAt 
+      : null;
+
+    // Add to queue and record this team's response time in queueTimes map
+    const updatePayload = { queue: arrayUnion(myTeam) };
+    if (responseMs != null) {
+      updatePayload[`queueTimes.${myTeam}`] = responseMs;
+    }
+    await updateDoc(docRef, updatePayload);
+
+    // Write a permanent buzzer event log entry
+    try {
+      await addDoc(collection(db, "buzzer_events"), {
+        team: myTeam,
+        responseMs,
+        questionText: gameState?.activeQ?.text || '',
+        questionId: gameState?.activeQ?.id || '',
+        round: gameState?.activeQ?.round || 1,
+        pressedAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Failed to log buzzer event", err);
+    }
 
     // Atomically increment buzzerPresses using cached teamDocId
     if (teamDocId) {
