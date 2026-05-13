@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db, auth } from '../firebase';
 import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, increment, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -61,91 +61,6 @@ export default function ClientPortal() {
     return () => document.removeEventListener('visibilitychange', onHide);
   }, [isJoined, myTeam]);
 
-  // ── WebRTC screen share ────────────────────────────────────────────────────
-  const [isSharing, setIsSharing] = useState(false);
-  const pcRef = useRef(null);
-
-  const startScreenShare = async () => {
-    // Warn before showing picker
-    const ok = window.confirm(
-      '📺 Screen Share\n\n' +
-      'Select "Entire Screen", "Window", or "Tab" in the picker.\n\n' +
-      '⚠️ If the Monitor page is visible on your screen, ask\n' +
-      '   admin to enable Stealth Mode first to prevent mirroring.\n\n' +
-      'Click OK to open the screen picker.'
-    );
-    if (!ok) return;
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always' },
-        audio: false,
-      });
-      setIsSharing(true);
-
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ],
-      });
-      pcRef.current = pc;
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
-
-      // Stop sharing if user clicks "Stop sharing" in browser UI
-      stream.getVideoTracks()[0].onended = () => {
-        setIsSharing(false);
-        pc.close();
-        setDoc(doc(db, 'webrtc_signals', myTeam), { offer: null, answer: null }, { merge: true }).catch(() => {});
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // Vanilla ICE — wait for all candidates before sending offer
-      await new Promise(resolve => {
-        if (pc.iceGatheringState === 'complete') { resolve(); return; }
-        const check = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', check); resolve(); } };
-        pc.addEventListener('icegatheringstatechange', check);
-        setTimeout(resolve, 6000);
-      });
-
-      const finalOffer = pc.localDescription;
-      await setDoc(doc(db, 'webrtc_signals', myTeam), {
-        offer: { type: finalOffer.type, sdp: finalOffer.sdp },
-        answer: null,
-        teamName: myTeam,
-      }, { merge: true });
-
-      // Watch Firestore for monitor's answer OR admin forceStop
-      const unsub = onSnapshot(doc(db, 'webrtc_signals', myTeam), async snap => {
-        const data = snap.data();
-        if (data?.forceStop) {
-          // Admin stopped this team's share
-          pc.close();
-          stream.getTracks().forEach(t => t.stop());
-          setIsSharing(false);
-          await setDoc(doc(db, 'webrtc_signals', myTeam), { offer: null, answer: null, forceStop: false }, { merge: true }).catch(() => {});
-          unsub();
-          return;
-        }
-        if (data?.answer && !pc.currentRemoteDescription) {
-          try {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-            // Don't unsub — keep watching for forceStop
-          } catch (e) { console.error('setRemoteDesc error:', e); }
-        }
-      });
-    } catch (err) {
-      if (err.name !== 'NotAllowedError') console.error('Screen share error:', err);
-      setIsSharing(false);
-    }
-  };
-
-  const stopScreenShare = () => {
-    pcRef.current?.close();
-    setIsSharing(false);
-    setDoc(doc(db, 'webrtc_signals', myTeam), { offer: null, answer: null }, { merge: true }).catch(() => {});
-  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -464,26 +379,6 @@ export default function ClientPortal() {
       </div>
 
       <div className="w-full max-w-3xl text-center flex-1 flex flex-col justify-center relative">
-        
-        {/* Screen share bar — no stop button for client, admin controls it */}
-      <div className={`flex items-center justify-between px-5 py-2 border-b flex-shrink-0 ${
-        isSharing ? 'bg-neon-green/10 border-neon-green/30' : 'bg-red-500/5 border-red-500/20'
-      }`}>
-        <div className="flex items-center gap-3">
-          <span className={`w-2 h-2 rounded-full ${isSharing ? 'bg-neon-green animate-pulse' : 'bg-red-500'}`} />
-          <span className={`font-mono text-xs font-bold uppercase tracking-widest ${
-            isSharing ? 'text-neon-green' : 'text-red-400'
-          }`}>
-            {isSharing ? 'Screen Sharing — Admin can view your screen' : 'Screen not shared — click to start'}
-          </span>
-        </div>
-        {!isSharing && (
-          <button onClick={startScreenShare}
-            className="bg-neon-green/20 text-neon-green border border-neon-green/40 px-4 py-1.5 rounded-lg font-mono text-xs font-bold hover:bg-neon-green/30 transition-all shadow-[0_0_10px_rgba(0,255,102,0.2)] flex items-center gap-2">
-            📺 Share Screen
-          </button>
-        )}
-      </div>
         <AnimatePresence>
           {status === "round_transition" && (
             <motion.div 
