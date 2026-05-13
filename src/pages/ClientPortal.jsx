@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, increment, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, getDocs, collection, query, arrayUnion, increment, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 
 export default function ClientPortal() {
@@ -22,6 +22,29 @@ export default function ClientPortal() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Presence heartbeat — write to Firestore so Master Monitor knows who's online
+  useEffect(() => {
+    if (!isJoined || !myTeam) return;
+    const writePresence = () => {
+      setDoc(doc(db, 'presence', myTeam), {
+        teamName: myTeam,
+        lastSeenMs: Date.now(),
+        online: true,
+      }, { merge: true }).catch(() => {});
+    };
+    writePresence(); // immediate
+    const hb = setInterval(writePresence, 20000); // every 20s
+    const markOffline = () => {
+      setDoc(doc(db, 'presence', myTeam), { online: false, lastSeenMs: Date.now() }, { merge: true }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', markOffline);
+    return () => {
+      clearInterval(hb);
+      window.removeEventListener('beforeunload', markOffline);
+      markOffline();
+    };
+  }, [isJoined, myTeam]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
