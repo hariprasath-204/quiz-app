@@ -407,8 +407,82 @@ export default function ClientPortal() {
           </motion.div>
         )}
 
+        {/* QUEUE PROCESSING OVERLAY — admin is verifying */}
+        <AnimatePresence>
+          {status === "queue_processing" && !isLockedByTieBreaker && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-dark-bg/95 backdrop-blur-xl rounded-3xl border border-cyan-400/20"
+            >
+              {/* Spinning radar ring */}
+              <div className="relative w-36 h-36 mb-10">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0 rounded-full border-4 border-transparent border-t-cyan-400 border-r-cyan-400/30"
+                />
+                <motion.div
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-4 rounded-full border-4 border-transparent border-t-neon-purple border-r-neon-purple/20"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <motion.span
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="text-4xl"
+                  >🔍</motion.span>
+                </div>
+              </div>
+
+              <motion.h1
+                animate={{ opacity: [0.7, 1, 0.7] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-2xl md:text-3xl font-black font-mono uppercase tracking-widest text-cyan-400 mb-3 text-center"
+              >
+                Admin Verifying Queue
+              </motion.h1>
+
+              <p className="text-white/40 font-mono text-sm uppercase tracking-[0.3em] mb-8 text-center">
+                Please wait — answer panel opening soon
+              </p>
+
+              {/* Show this team's position in queue if they buzzed */}
+              {queue && queue.includes(myTeam) && (() => {
+                const times = gameState?.queueTimes || {};
+                const sorted = [...queue].sort((a, b) => (times[a] ?? Infinity) - (times[b] ?? Infinity));
+                const pos = sorted.indexOf(myTeam) + 1;
+                const ms = times[myTeam];
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="glass-panel px-10 py-5 rounded-2xl border border-cyan-400/30 text-center"
+                  >
+                    <p className="text-cyan-400 font-mono text-xs uppercase tracking-widest mb-1">Your Position</p>
+                    <p className="text-white font-black text-4xl font-mono">#{pos}</p>
+                    {ms != null && (
+                      <p className="text-white/30 font-mono text-xs mt-1">
+                        Response: {ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(3)}s`}
+                      </p>
+                    )}
+                  </motion.div>
+                );
+              })()}
+
+              {/* Team didn't buzz */}
+              {(!queue || !queue.includes(myTeam)) && (
+                <p className="text-white/20 font-mono text-sm italic">You did not press the buzzer this round.</p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* BUZZER AREA */}
-        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && !isLockedByTieBreaker && (
+        {status !== "answering" && status !== "evaluating" && status !== "countdown" && status !== "round_transition" && status !== "queue_processing" && !isLockedByTieBreaker && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
