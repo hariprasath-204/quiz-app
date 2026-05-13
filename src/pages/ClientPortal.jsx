@@ -157,7 +157,8 @@ export default function ClientPortal() {
         if (newQueue.length > 0) {
           await updateDoc(docRef, { queue: newQueue, status: "pass_to_next", attempts: (gameState?.attempts || 0) + 1 });
         } else {
-          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
+          // All teams exhausted — nobody got it right
+          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0, attempts: 0 });
         }
       }, 2500);
     }

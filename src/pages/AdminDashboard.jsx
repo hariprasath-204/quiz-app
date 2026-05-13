@@ -221,7 +221,16 @@ export default function AdminDashboard() {
         await updateDoc(docRef, { timerValue: timeLeft });
       } else {
         clearInterval(timerInterval);
-        forceAnswering();
+        // After 10s, lock the buzzer and wait for admin to verify & confirm
+        const snap = await getDoc(docRef);
+        const data = snap.data();
+        if (data?.queue && data.queue.length > 0) {
+          // Teams pressed — go to queue_processing so admin can verify
+          await updateDoc(docRef, { status: "queue_processing", timerValue: 0 });
+        } else {
+          // Nobody pressed — reset to waiting
+          await updateDoc(docRef, { status: "waiting", timerValue: 0 });
+        }
       }
     }, 1000);
     setIsLoading(false);
@@ -264,13 +273,15 @@ export default function AdminDashboard() {
           });
         }
 
-        // Time is up! 
+        // Time is up — this team missed their chance
         const newQueue = data.queue.slice(1);
         if (newQueue.length > 0) {
-          await updateDoc(docRef, { queue: newQueue });
+          // Increment attempts so next team gets lower points
+          const currentAttempts = data.attempts || 0;
+          await updateDoc(docRef, { queue: newQueue, attempts: currentAttempts + 1, status: "pass_to_next" });
           startAnswerTimer(newQueue); // Start timer for next team
         } else {
-          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0 });
+          await updateDoc(docRef, { status: "waiting", queue: [], timerValue: 0, attempts: 0 });
         }
       }
     }, 1000);
@@ -503,7 +514,7 @@ export default function AdminDashboard() {
           className={`p-3 text-left font-mono rounded-lg transition-all relative ${activeTab === 'queue_verify' ? 'text-cyan-400 bg-cyan-400/10 border-r-4 border-cyan-400' : 'text-white/60 hover:bg-white/5'}`}
         >
           🔍 Queue Verify
-          {gameState?.queue?.length > 0 && gameState?.status === 'buzzer_open' && (
+          {(gameState?.status === 'buzzer_open' || gameState?.status === 'queue_processing') && gameState?.queue?.length > 0 && (
             <span className="absolute right-3 top-3 w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           )}
         </button>
@@ -752,13 +763,15 @@ export default function AdminDashboard() {
               {/* Status Banner */}
               <div className={`p-4 rounded-xl mb-6 font-mono text-sm font-bold uppercase tracking-widest text-center ${
                 gameState?.status === 'buzzer_open' ? 'bg-neon-green/10 border border-neon-green text-neon-green' :
+                gameState?.status === 'queue_processing' ? 'bg-cyan-400/10 border-2 border-cyan-400 text-cyan-400 animate-pulse' :
                 gameState?.status === 'answering' ? 'bg-neon-blue/10 border border-neon-blue text-neon-blue' :
                 'bg-white/5 border border-white/10 text-white/40'
               }`}>
                 {gameState?.status === 'buzzer_open' && '⚡ Buzzer Open — Teams are pressing now'}
+                {gameState?.status === 'queue_processing' && '🔐 Buzzer Closed — Verify queue below, then confirm to open answer panel'}
                 {gameState?.status === 'answering' && `⏱ Answering: ${gameState?.queue?.[0] || '...'}`}
                 {gameState?.status === 'waiting' && '⏸ Waiting — No buzzer active'}
-                {!['buzzer_open','answering','waiting'].includes(gameState?.status) && `Status: ${gameState?.status}`}
+                {!['buzzer_open','queue_processing','answering','waiting'].includes(gameState?.status) && `Status: ${gameState?.status}`}
               </div>
 
               {/* Sorted Queue */}
