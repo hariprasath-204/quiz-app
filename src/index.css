@@ -50,3 +50,9 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #00f3ff;
 }
+
+/* Admin nav — thin subtle scrollbar */
+nav::-webkit-scrollbar { width: 4px; }
+nav::-webkit-scrollbar-track { background: transparent; }
+nav::-webkit-scrollbar-thumb { background: rgba(176,38,255,0.35); border-radius: 4px; }
+nav::-webkit-scrollbar-thumb:hover { background: rgba(0,243,255,0.55); }
