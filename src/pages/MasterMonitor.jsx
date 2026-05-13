@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
-import { collection, doc, onSnapshot, setDoc, query } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, updateDoc, query } from 'firebase/firestore';
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -110,6 +110,10 @@ export default function MasterMonitor() {
   const cols = teams.length <= 1 ? 1 : teams.length <= 4 ? 2 : teams.length <= 9 ? 3 : 4;
   const queue = gameState?.queue || [];
 
+  const stopTeamShare = async (teamName) => {
+    await setDoc(doc(db, 'webrtc_signals', teamName), { forceStop: true }, { merge: true });
+  };
+
   const statusColor = {
     buzzer_open: 'text-neon-green', answering: 'text-neon-blue',
     queue_processing: 'text-cyan-400', countdown: 'text-neon-pink',
@@ -217,6 +221,12 @@ export default function MasterMonitor() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-yellow-400 font-mono text-xs font-bold">{team.score || 0}p</span>
+                  {streams[team.name] && (
+                    <button onClick={() => stopTeamShare(team.name)}
+                      className="text-red-400/60 hover:text-red-400 text-xs transition-colors font-mono" title="Stop screen share">
+                      ⊗
+                    </button>
+                  )}
                   <button onClick={() => setFullscreenTeam(team.name)}
                     className="text-white/30 hover:text-white text-sm transition-colors" title="Fullscreen">⛶</button>
                 </div>
