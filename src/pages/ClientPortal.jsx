@@ -66,8 +66,22 @@ export default function ClientPortal() {
   const pcRef = useRef(null);
 
   const startScreenShare = async () => {
+    // Warn before showing picker
+    const ok = window.confirm(
+      '📺 Screen Share Instructions:\n\n' +
+      '• In the picker that appears, select "THIS TAB" (not "Entire Screen" or "Window")\n' +
+      '• This ensures only your quiz page is shared\n' +
+      '• Do NOT share the Master Monitor tab\n\n' +
+      'Click OK to open the screen picker.'
+    );
+    if (!ok) return;
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      // preferCurrentTab pre-selects this tab in Chrome, reducing mirror risk
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+        preferCurrentTab: true,
+      });
       setIsSharing(true);
 
       const pc = new RTCPeerConnection({

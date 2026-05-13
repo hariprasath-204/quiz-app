@@ -229,13 +229,21 @@ export default function MasterMonitor() {
                   className={`w-full h-full object-cover ${hasStream ? 'block' : 'hidden'}`} />
 
                 {!hasStream && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl mb-1">{online ? '📡' : '⚪'}</span>
-                    <p className="text-white/20 font-mono text-[10px] text-center">
-                      {online ? 'Not sharing screen' : 'Offline'}
-                    </p>
-                    <p className="text-white/10 font-mono text-[9px] mt-1">
-                      {team.correctAnswers || 0}✓ {team.wrongAnswers || 0}✗ {team.buzzerPresses || 0}⚡
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-dark-bg/60 to-black/80">
+                    {/* SVG monitor icon */}
+                    <svg width="48" height="38" viewBox="0 0 48 38" fill="none" xmlns="http://www.w3.org/2000/svg" opacity="0.25">
+                      <rect x="1" y="1" width="46" height="30" rx="3" stroke="white" strokeWidth="2" fill="none"/>
+                      <line x1="17" y1="31" x2="13" y2="37" stroke="white" strokeWidth="2"/>
+                      <line x1="31" y1="31" x2="35" y2="37" stroke="white" strokeWidth="2"/>
+                      <line x1="12" y1="37" x2="36" y2="37" stroke="white" strokeWidth="2"/>
+                      <circle cx="24" cy="16" r="6" stroke="white" strokeWidth="1.5" fill="none"/>
+                      <line x1="24" y1="10" x2="24" y2="22" stroke="white" strokeWidth="1" strokeDasharray="2 2"/>
+                      <line x1="18" y1="16" x2="30" y2="16" stroke="white" strokeWidth="1" strokeDasharray="2 2"/>
+                    </svg>
+                    <p className={`font-mono text-[10px] font-bold uppercase tracking-widest ${
+                      online ? 'text-white/25' : 'text-white/15'
+                    }`}>
+                      {online ? 'Not Sharing' : 'Offline'}
                     </p>
                   </div>
                 )}
