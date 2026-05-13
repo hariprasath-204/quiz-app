@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('live');
   const [gameState, setGameState] = useState(null);
-  const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10, points: "10, 7, 5, 3" }, { id: 2, capacity: 7, points: "10, 7, 5, 3" }, { id: 3, capacity: 5, points: "10, 7, 5, 3" }]);
+  const [roundsConfig, setRoundsConfig] = useState([{ id: 1, capacity: 10, points: "10, 7, 5, 3" }, { id: 2, capacity: 7, points: "10, 7, 5, 3" }, { id: 3, capacity: 5, points: "10, 7, 5, 3" }, { id: 'final', capacity: 5, points: "15, 10" }]);
   const [tieBreakerPoints, setTieBreakerPoints] = useState("8, 6");
   const [queueLimit, setQueueLimit] = useState(4);
   const [autoOpenAnswer, setAutoOpenAnswer] = useState(true);
@@ -127,6 +127,32 @@ export default function AdminDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.status]);
+
+  // ── Auto Round Finish ─────────────────────────────────────────────────────
+  // When the last question of a round is answered (question_done), auto-trigger
+  // the Round Finished cinematic so the admin doesn't have to do it manually.
+  useEffect(() => {
+    if (gameState?.status !== 'question_done') return;
+    const round = gameState?.activeQ?.round;
+    if (!round || round === 'tie_breaker') return;
+
+    const roundQs = questions.filter(q => q.round?.toString() === round?.toString());
+    if (roundQs.length === 0) return;
+    const allPushed = roundQs.every(q => q.pushed);
+
+    if (allPushed) {
+      // Small delay so the "Next Question" overlay is visible for a moment
+      const timer = setTimeout(async () => {
+        await updateDoc(doc(db, 'game_state', 'current'), {
+          status: 'round_transition',
+          transitionType: 'finish',
+          roundNumber: round,
+        });
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.status, gameState?.activeQ?.round, questions]);
 
   const saveSettings = async () => {
     setIsLoading(true);
@@ -895,7 +921,9 @@ export default function AdminDashboard() {
                 className="bg-dark-bg/50 border border-white/20 p-4 rounded-xl text-white outline-none focus:border-neon-purple w-full font-mono text-lg"
               >
                 {roundsConfig.map(r => (
-                  <option key={r.id} value={r.id.toString()}>Round {r.id}</option>
+                  <option key={r.id} value={r.id.toString()}>
+                    {r.id === 'final' ? 'Final Round' : `Round ${r.id}`}
+                  </option>
                 ))}
                 <option value="tie_breaker">Tie Breaker</option>
               </select>
@@ -969,7 +997,7 @@ export default function AdminDashboard() {
               return (
                 <div key={roundNum} className="mb-10">
                   <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2 font-mono flex justify-between items-center">
-                    <span>Round {roundNum}</span>
+                    <span>{roundNum === 'final' ? '🏁 Final Round' : `Round ${roundNum}`}</span>
                     <div className="flex gap-4 items-center">
                       <button onClick={() => triggerRoundTransition('start', roundNum)} className="text-xs bg-neon-blue/20 text-neon-blue px-3 py-1 rounded hover:bg-neon-blue/40 border border-neon-blue transition-all uppercase tracking-widest font-bold">Start Round</button>
                       <button onClick={() => triggerRoundTransition('finish', roundNum)} className="text-xs bg-neon-pink/20 text-neon-pink px-3 py-1 rounded hover:bg-neon-pink/40 border border-neon-pink transition-all uppercase tracking-widest font-bold">Finish Round</button>
@@ -1409,7 +1437,7 @@ export default function AdminDashboard() {
               <div className="space-y-4 mb-6">
                 {roundsConfig.map((r, i) => (
                   <div key={i} className="flex gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10">
-                    <span className="font-mono text-lg font-bold w-32">Round {r.id}</span>
+                    <span className="font-mono text-lg font-bold w-32">{r.id === 'final' ? '🏁 Final Round' : `Round ${r.id}`}</span>
                     <div className="flex-1 flex flex-col gap-4">
                       <div className="flex items-center gap-4">
                         <label className="text-white/40 font-mono text-sm w-36">Capacity (Qs):</label>
@@ -1512,7 +1540,14 @@ export default function AdminDashboard() {
               <div className="flex gap-4">
                 <button
                   onClick={() => {
-                    const newConfig = [...roundsConfig, { id: roundsConfig.length + 1, capacity: 5, points: "10, 7, 5, 3" }];
+                    // Don't auto-add after 'final' round — insert before it
+                    const hasFinal = roundsConfig.some(r => r.id === 'final');
+                    const numericRounds = roundsConfig.filter(r => r.id !== 'final');
+                    const newId = numericRounds.length + 1;
+                    const newRound = { id: newId, capacity: 5, points: "10, 7, 5, 3" };
+                    const newConfig = hasFinal
+                      ? [...numericRounds, newRound, roundsConfig.find(r => r.id === 'final')]
+                      : [...roundsConfig, newRound];
                     setRoundsConfig(newConfig);
                   }}
                   className="bg-white/10 hover:bg-white/20 text-white border border-white/30 font-bold font-mono px-6 py-3 rounded-xl transition-all"
