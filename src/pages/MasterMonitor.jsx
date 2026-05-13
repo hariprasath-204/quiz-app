@@ -129,17 +129,24 @@ export default function MasterMonitor() {
           📺 Master Monitor
         </h1>
         <div className="flex gap-3">
-          <button
-              onClick={() => setStealthMode(v => !v)}
-              title="Stealth Mode: hides video feeds so entire-screen sharing doesn't mirror"
-              className={`px-4 py-2 rounded-lg font-mono text-sm font-bold border transition-all ${
-                stealthMode
-                  ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-400'
-                  : 'bg-white/5 border-white/20 text-white/40 hover:text-white'
-              }`}
-            >
-              {stealthMode ? '🫥 Stealth ON' : '👁 Stealth OFF'}
-            </button>
+          <div className="flex flex-col items-end">
+            <button
+                onClick={() => setStealthMode(v => !v)}
+                title="Stealth Mode: hides video feeds so entire-screen sharing doesn't mirror"
+                className={`px-6 py-2 rounded-lg font-mono text-sm font-bold border-2 transition-all shadow-lg ${
+                  stealthMode
+                    ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 shadow-yellow-500/20'
+                    : 'bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500/30 animate-pulse'
+                }`}
+              >
+                {stealthMode ? '🫥 ANTI-MIRROR (STEALTH) ON' : '👁 TURN ON ANTI-MIRROR'}
+              </button>
+              {!stealthMode && (
+                <span className="text-[10px] text-red-400 font-mono mt-1 max-w-[200px] text-right">
+                  Click this if testing on same computer to prevent infinite looping!
+                </span>
+              )}
+          </div>
           <div className="glass-panel px-4 py-2 rounded-lg border border-neon-green/30 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
             <span className="font-mono text-neon-green text-sm font-bold">
