@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
@@ -7,22 +7,28 @@ export default function Leaderboard() {
   const [teams, setTeams] = useState([]);
   const [presence, setPresence] = useState({});
   const [isRevealing, setIsRevealing] = useState(false);
+  const presenceRef = useRef({});
+  const rawTeamsRef = useRef([]);
+
+  const sortAndSet = (rawTeams, pres) => {
+    const sorted = [...rawTeams].sort((a, b) => {
+      const aCheated = (pres[a.name]?.tabSwitches || 0) > 0;
+      const bCheated = (pres[b.name]?.tabSwitches || 0) > 0;
+      if (aCheated !== bCheated) return aCheated ? 1 : -1;
+      if (b.score !== a.score) return b.score - a.score;
+      if ((b.correctAnswers||0) !== (a.correctAnswers||0)) return (b.correctAnswers||0) - (a.correctAnswers||0);
+      if ((b.buzzerPresses||0) !== (a.buzzerPresses||0)) return (b.buzzerPresses||0) - (a.buzzerPresses||0);
+      return (b.wrongAnswers||0) - (a.wrongAnswers||0);
+    });
+    setTeams(sorted);
+  };
 
   useEffect(() => {
     const unSubTeams = onSnapshot(collection(db, "teams"), (s) => {
       const t = [];
-      s.forEach(d => {
-        if (!d.data().eliminated) {
-          t.push({ id: d.id, ...d.data() });
-        }
-      });
-      // Sort: score desc → correct answers desc → buzzer presses desc → wrong answers desc
-      setTeams(t.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        if ((b.correctAnswers||0) !== (a.correctAnswers||0)) return (b.correctAnswers||0) - (a.correctAnswers||0);
-        if ((b.buzzerPresses||0) !== (a.buzzerPresses||0)) return (b.buzzerPresses||0) - (a.buzzerPresses||0);
-        return (b.wrongAnswers||0) - (a.wrongAnswers||0);
-      }));
+      s.forEach(d => { if (!d.data().eliminated) t.push({ id: d.id, ...d.data() }); });
+      rawTeamsRef.current = t;
+      sortAndSet(t, presenceRef.current);
     });
     return () => unSubTeams();
   }, []);
@@ -31,7 +37,9 @@ export default function Leaderboard() {
     const unSub = onSnapshot(collection(db, 'presence'), s => {
       const p = {};
       s.forEach(d => { p[d.id] = d.data(); });
+      presenceRef.current = p;
       setPresence(p);
+      sortAndSet(rawTeamsRef.current, p); // re-sort when cheat count changes
     });
     return () => unSub();
   }, []);

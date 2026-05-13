@@ -68,10 +68,10 @@ export default function ClientPortal() {
   const startScreenShare = async () => {
     // Warn before showing picker
     const ok = window.confirm(
-      '📺 Screen Share — IMPORTANT\n\n' +
-      '✅ In the picker, select "THIS TAB" (the quiz page)\n\n' +
-      '❌ Do NOT select "Entire Screen" or "Window"\n' +
-      '   → This causes an infinite mirror loop!\n\n' +
+      '📺 Screen Share\n\n' +
+      'Select "Entire Screen", "Window", or "Tab" in the picker.\n\n' +
+      '⚠️ If the Monitor page is visible on your screen, ask\n' +
+      '   admin to enable Stealth Mode first to prevent mirroring.\n\n' +
       'Click OK to open the screen picker.'
     );
     if (!ok) return;
@@ -79,7 +79,6 @@ export default function ClientPortal() {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always' },
         audio: false,
-        preferCurrentTab: true,   // Pre-selects THIS tab in Chrome — prevents mirror
       });
       setIsSharing(true);
 

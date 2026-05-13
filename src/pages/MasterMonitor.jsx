@@ -16,6 +16,7 @@ export default function MasterMonitor() {
   const [streams, setStreams] = useState({});
   const [fullscreenTeam, setFullscreenTeam] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [stealthMode, setStealthMode] = useState(false);
 
   const pcsRef = useRef({});
   const videoRefs = useRef({});
@@ -127,7 +128,17 @@ export default function MasterMonitor() {
         <h1 className="text-2xl font-black font-mono uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
           📺 Master Monitor
         </h1>
-        <div className="flex gap-3">
+          <button
+              onClick={() => setStealthMode(v => !v)}
+              title="Stealth Mode: hides video feeds so entire-screen sharing doesn't mirror"
+              className={`px-4 py-2 rounded-lg font-mono text-sm font-bold border transition-all ${
+                stealthMode
+                  ? 'bg-yellow-500/20 border-yellow-500/60 text-yellow-400'
+                  : 'bg-white/5 border-white/20 text-white/40 hover:text-white'
+              }`}
+            >
+              {stealthMode ? '🫥 Stealth ON' : '👁 Stealth OFF'}
+            </button>
           <div className="glass-panel px-4 py-2 rounded-lg border border-neon-green/30 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
             <span className="font-mono text-neon-green text-sm font-bold">
@@ -234,9 +245,22 @@ export default function MasterMonitor() {
 
               {/* Video / placeholder */}
               <div className="relative bg-black" style={{ aspectRatio: '16/9', minHeight: 120 }}>
+                {/* In stealth mode hide video to prevent mirror loop */}
                 <video ref={el => { if (el) videoRefs.current[team.name] = el; }}
                   autoPlay muted playsInline
-                  className={`w-full h-full object-cover ${hasStream ? 'block' : 'hidden'}`} />
+                  className={`w-full h-full object-cover ${
+                    hasStream && !stealthMode ? 'block' : 'hidden'
+                  }`} />
+
+                {/* Stealth mode overlay */}
+                {stealthMode && (
+                  <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-1">
+                    <span className="text-yellow-400/40 font-mono text-[9px] uppercase tracking-widest">Stealth</span>
+                    <span className={`text-white/20 font-mono text-[10px] ${hasStream ? 'text-neon-green/30' : ''}`}>
+                      {hasStream ? '● Live' : '○ No stream'}
+                    </span>
+                  </div>
+                )}
 
                 {!hasStream && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-dark-bg/60 to-black/80">
