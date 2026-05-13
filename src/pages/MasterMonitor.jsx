@@ -187,10 +187,19 @@ export default function MasterMonitor() {
                 ✕ Close Fullscreen
               </button>
             </div>
-            <div className="flex-1 bg-black flex items-center justify-center">
+            <div className="flex-1 bg-black flex items-center justify-center relative">
               {streams[fullscreenTeam] ? (
-                <video ref={el => { if (el) { videoRefs.current[`fs_${fullscreenTeam}`] = el; el.srcObject = streams[fullscreenTeam]; el.play().catch(() => {}); } }}
-                  autoPlay muted playsInline className="w-full h-full object-contain" />
+                <>
+                  <video ref={el => { if (el) { videoRefs.current[`fs_${fullscreenTeam}`] = el; el.srcObject = streams[fullscreenTeam]; el.play().catch(() => {}); } }}
+                    autoPlay muted playsInline className={`w-full h-full object-contain ${stealthMode ? 'hidden' : 'block'}`} />
+                  
+                  {stealthMode && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black">
+                      <span className="text-yellow-400/40 font-mono text-xl uppercase tracking-widest border border-yellow-400/20 px-6 py-3 rounded-xl">🫥 Stealth Mode Active</span>
+                      <span className="text-neon-green/50 font-mono text-sm">● Stream is live but hidden to prevent mirroring</span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center">
                   <p className="text-5xl mb-4">📡</p>
