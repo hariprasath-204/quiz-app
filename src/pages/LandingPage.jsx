@@ -20,7 +20,7 @@ export default function LandingPage() {
         />
       </div>
 
-      <div className="z-10 text-center w-full max-w-4xl glass-panel p-8 md:p-16 rounded-3xl border border-white/10 relative overflow-hidden">
+      <div className="z-10 text-center w-full max-w-4xl p-8 md:p-16 relative">
         {/* Header Strings */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
