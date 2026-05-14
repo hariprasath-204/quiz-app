@@ -8,15 +8,15 @@ export default {
     extend: {
       colors: {
         neon: {
-          blue: '#00f3ff',
-          purple: '#b026ff',
-          pink: '#ff007f',
-          green: '#00ff66'
+          blue: '#00ff41',
+          purple: '#39ff14',
+          pink: '#00e676',
+          green: '#00ff41'
         },
         dark: {
-          bg: '#05050f',
-          surface: 'rgba(20, 20, 35, 0.6)',
-          border: 'rgba(255, 255, 255, 0.1)'
+          bg: '#000a00',
+          surface: 'rgba(0, 18, 0, 0.75)',
+          border: 'rgba(0, 255, 65, 0.18)'
         }
       },
       fontFamily: {
@@ -30,8 +30,8 @@ export default {
       },
       keyframes: {
         glow: {
-          '0%, 100%': { opacity: 1, filter: 'drop-shadow(0 0 10px rgba(0, 243, 255, 0.8))' },
-          '50%': { opacity: .5, filter: 'drop-shadow(0 0 2px rgba(0, 243, 255, 0.3))' },
+          '0%, 100%': { opacity: 1, filter: 'drop-shadow(0 0 10px rgba(0, 255, 65, 0.9))' },
+          '50%': { opacity: .5, filter: 'drop-shadow(0 0 2px rgba(0, 255, 65, 0.3))' },
         },
         float: {
           '0%, 100%': { transform: 'translateY(0)' },

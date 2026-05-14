@@ -6,18 +6,18 @@
   body {
     @apply bg-dark-bg text-white overflow-hidden;
     background-image: 
-      radial-gradient(circle at 15% 50%, rgba(176, 38, 255, 0.1), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.1), transparent 25%);
-    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 3L19.5 11L11.5 13.5L8.5 21L4.5 3Z" fill="%2300f3ff" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, auto !important;
+      radial-gradient(circle at 15% 50%, rgba(0, 255, 65, 0.07), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(57, 255, 20, 0.07), transparent 25%);
+    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 3L19.5 11L11.5 13.5L8.5 21L4.5 3Z" fill="%2300ff41" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, auto !important;
   }
 
   button, a, input, select, [role="button"], .cursor-pointer {
-    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 3L19.5 11L11.5 13.5L8.5 21L4.5 3Z" fill="%23ff007f" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, pointer !important;
+    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 3L19.5 11L11.5 13.5L8.5 21L4.5 3Z" fill="%2339ff14" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>') 4 3, pointer !important;
   }
 }
 
 .glass-panel {
-  @apply bg-dark-surface border border-dark-border backdrop-blur-md shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
+  @apply bg-dark-surface border border-dark-border backdrop-blur-md shadow-[0_8px_32px_0_rgba(0,0,0,0.5)];
 }
 
 .text-gradient {
@@ -25,15 +25,15 @@
 }
 
 .buzzer-active {
-  background: radial-gradient(circle, #ff007f 0%, #b026ff 100%);
-  box-shadow: 0 0 50px rgba(255, 0, 127, 0.6);
+  background: radial-gradient(circle, #00ff41 0%, #39ff14 100%);
+  box-shadow: 0 0 50px rgba(0, 255, 65, 0.6);
   animation: pulse-ring 1.5s infinite;
 }
 
 @keyframes pulse-ring {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 127, 0.7); }
-  70% { transform: scale(1.05); box-shadow: 0 0 0 30px rgba(255, 0, 127, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 127, 0); }
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 30px rgba(0, 255, 65, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 255, 65, 0); }
 }
 
 /* Custom scrollbar */
@@ -41,18 +41,18 @@
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #05050f;
+  background: #000a00;
 }
 ::-webkit-scrollbar-thumb {
-  background: #b026ff;
+  background: #00ff41;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00f3ff;
+  background: #39ff14;
 }
 
 /* Admin nav — thin subtle scrollbar */
 nav::-webkit-scrollbar { width: 4px; }
 nav::-webkit-scrollbar-track { background: transparent; }
-nav::-webkit-scrollbar-thumb { background: rgba(176,38,255,0.35); border-radius: 4px; }
-nav::-webkit-scrollbar-thumb:hover { background: rgba(0,243,255,0.55); }
+nav::-webkit-scrollbar-thumb { background: rgba(0,255,65,0.35); border-radius: 4px; }
+nav::-webkit-scrollbar-thumb:hover { background: rgba(57,255,20,0.55); }
